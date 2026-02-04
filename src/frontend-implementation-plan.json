@@ -1,0 +1,90 @@
+{
+  "kind": "implementation_plan",
+  "version": "1.0",
+  "title": "Private per-user Custom Tools in Model Builder (frontend)",
+  "requirements": [
+    {
+      "id": "REQ-3",
+      "summary": "Add React Query hooks for Custom Tool Definitions with stable caching and mutation invalidation so the Tool Palette stays in sync.",
+      "acceptanceCriteria": [
+        "Custom tools list is cached under a stable queryKey and invalidates after mutations.",
+        "When identity/actor changes, custom tools queries refetch consistently with existing patterns."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add React Query hooks for Custom Tool Definitions: list (caller scope), create, update, and delete using the existing actor-based pattern; ensure a stable queryKey (e.g., ['customTools']) and invalidate it after each mutation; gate queries on actor readiness and authentication similar to existing hooks."
+        }
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "summary": "Extend ModelBuilder tool palette to show the caller’s Custom Tools alongside built-in ICT tools and support placing them via the existing select-tool → select-zone flow.",
+      "acceptanceCriteria": [
+        "Custom tools appear in the Tool Palette for their owner after refresh and are not visible to other non-admin users.",
+        "Selecting a custom tool and then selecting a zone appends a new ToolConfig to that zone (same behavior as built-ins).",
+        "ModelBuilder tool cards display a human-readable name for custom tool types (not just the raw type id)."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/ModelBuilder.tsx",
+          "operation": "modify",
+          "description": "Integrate Custom Tool Definitions into the Tool Palette: fetch the caller’s custom tools via the new query hook; render them in a dedicated 'Custom Tools' category alongside existing ICT categories; allow selecting a custom tool and placing it into zones using the existing unified selection flow; generate default ToolConfig.properties from the custom tool definition default values; extend getToolName() to resolve names from custom tool definitions so cards show human-readable names."
+        },
+        {
+          "path": "frontend/src/components/ToolConfigDialog.tsx",
+          "operation": "modify",
+          "description": "Update the ToolConfigDialog invocation from ModelBuilder to provide the loaded Custom Tool Definitions (or a lookup map) so the dialog can render custom tool property fields by schema when the tool type matches a custom tool id."
+        }
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "summary": "Add a UI flow to create/edit/delete Custom Tool Definitions, including a form to define tool name and a reorderable Properties schema (select/text/number/toggle) with labels, select options, and default values.",
+      "acceptanceCriteria": [
+        "User can add/remove/reorder property fields in the custom tool definition UI.",
+        "Validation prevents saving a custom tool with an empty name or invalid select options (e.g., zero options).",
+        "Deleting a custom tool removes it from the Tool Palette after the next successful mutation/invalidation."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/CustomToolManagerDialog.tsx",
+          "operation": "create",
+          "description": "Create a dialog component to manage Custom Tool Definitions: list existing custom tools, provide create/edit modes, and include delete actions; integrate validation (non-empty name; select fields require >=1 option; sensible default value checks per type); support add/remove/reorder of property fields (e.g., move up/down controls) and editing select options."
+        },
+        {
+          "path": "frontend/src/components/ModelBuilder.tsx",
+          "operation": "modify",
+          "description": "Wire the CustomToolManagerDialog into the ModelBuilder UI (e.g., a 'Manage Custom Tools' action within the tool palette header) so users can create/edit/delete custom tools without introducing new top-level routes; after successful mutations, rely on query invalidation to refresh the palette list."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Ensure the Custom Tool Definition mutation hooks expose async helpers suitable for the manager dialog (create/update/delete) and that successful mutations invalidate the custom tools query so ModelBuilder updates immediately."
+        }
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "summary": "Render ToolConfig Properties for custom tool instances from their custom schema while keeping built-in tool rendering unchanged.",
+      "acceptanceCriteria": [
+        "For a custom tool instance, the Tool Config dialog shows the custom-defined property fields with the correct input widgets (select/text/number/toggle) and labels.",
+        "Saving a custom tool instance persists values into ToolConfig.properties JSON as today.",
+        "Built-in tool instances continue to use existing TOOL_PROPERTY_CONFIGS without regressions."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/ToolConfigDialog.tsx",
+          "operation": "modify",
+          "description": "Extend property rendering logic to support custom tool instances: if tool.type matches a Custom Tool Definition id, generate the Properties tab dynamically from the definition’s properties schema (type + propertyLabel + options + default_value) using the same input widgets (select/text/number/toggle) and store values back into ToolConfig.properties JSON; preserve existing TOOL_PROPERTY_CONFIGS-based behavior for built-in tool types."
+        },
+        {
+          "path": "frontend/src/components/ModelBuilder.tsx",
+          "operation": "modify",
+          "description": "Ensure ToolConfigDialog receives enough custom tool definition context (e.g., a lookup map keyed by custom tool id) for custom-property rendering; maintain existing behavior for built-in tools and continue to pass getToolName so the dialog title remains human-readable for both built-in and custom tool types."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "kind": "coverage_report",
+  "version": "1.0",
+  "generatedAt": "2026-02-04T21:55:50.841Z",
+  "sources": {
+    "buildRequest": true,
+    "implementationPlan": true
+  },
+  "requirements": {
+    "total": 6,
+    "implemented": 4,
+    "items": [
+      {
+        "id": "REQ-1",
+        "summary": "Add backend support for user-owned Custom Tool Definitions that are private to the creating user, including canister methods to create, update, delete, get-by-id, and list the caller’s custom tools, with the same RBAC/ownership enforcement pattern used for Models/Trades (only the owner or an admin can access/modify).",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-2",
+        "summary": "Define a Custom Tool Definition data model that generalizes the tool \"Properties\" section using the same property input types as built-in tools (at minimum: select/dropdown with options, text input, number input, toggle/on-off), including labels and default values, and store it in canister state so it persists across calls for that user.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-3",
+        "summary": "Add React Query hooks for Custom Tool Definitions (list/create/update/delete) using the existing actor-based pattern in frontend/src/hooks/useQueries.ts, including query invalidation so the Tool Palette refreshes immediately after custom tools are created/updated/deleted.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": [
+          "frontend/src/hooks/useQueries.ts"
+        ]
+      },
+      {
+        "id": "REQ-4",
+        "summary": "Extend the Model Builder Tool Palette (frontend/src/components/ModelBuilder.tsx) to display the caller’s Custom Tools alongside built-in ICT tools, and allow selecting and placing custom tools into zones using the existing unified \"select tool → select zone\" flow.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/ModelBuilder.tsx",
+          "frontend/src/components/ToolConfigDialog.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/ModelBuilder.tsx",
+          "frontend/src/components/ToolConfigDialog.tsx"
+        ]
+      },
+      {
+        "id": "REQ-5",
+        "summary": "Add a frontend UI flow to create/edit/delete Custom Tool Definitions, including a form that lets the user define the tool name and its Properties schema (field list with field type: select/text/number/toggle; per-field label; for select fields, an editable options list; per-field default value).",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/CustomToolManagerDialog.tsx",
+          "frontend/src/components/ModelBuilder.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/CustomToolManagerDialog.tsx",
+          "frontend/src/components/ModelBuilder.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ]
+      },
+      {
+        "id": "REQ-6",
+        "summary": "Update tool configuration rendering so that when configuring an instance of a custom tool (ToolConfig), the Properties tab is generated from that custom tool definition’s schema (not from TOOL_PROPERTY_CONFIGS), while keeping the existing behavior unchanged for built-in tool types.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/ToolConfigDialog.tsx",
+          "frontend/src/components/ModelBuilder.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/ToolConfigDialog.tsx",
+          "frontend/src/components/ModelBuilder.tsx"
+        ]
+      }
+    ]
+  },
+  "changedFiles": [
+    "backend/main.mo",
+    "backend/migration.mo",
+    "build-request.json",
+    "feature_evidence.json",
+    "frontend-file-summaries.txt",
+    "frontend-implementation-plan.json",
+    "frontend/src/backend.d.ts",
+    "frontend/src/backend.ts",
+    "frontend/src/components/CustomToolManagerDialog.tsx",
+    "frontend/src/components/ModelBuilder.tsx",
+    "frontend/src/components/ToolConfigDialog.tsx",
+    "frontend/src/declarations/backend.did.d.ts",
+    "frontend/src/declarations/backend.did.js",
+    "frontend/src/hooks/useQueries.ts",
+    "project_state.json",
+    "scratch/component-selection.json",
+    "spec.md",
+    "spec_vs_diff_report.json"
+  ]
+}

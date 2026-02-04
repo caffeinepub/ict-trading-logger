@@ -1,0 +1,89 @@
+{
+  "kind": "feature_evidence_report",
+  "features": [
+    {
+      "featureId": "feature-add-react-query-hooks-for-custom-tool-definitions-list-create-update-delete-using-the-existing-actor-based-pattern-in-frontend-src-hooks-usequeries-ts-including-query-invalidation-so-the-tool-palette-refreshes-immediately-after-custom-tools-are-created-updated-deleted",
+      "featureTitle": "Add React Query hooks for Custom Tool Definitions (list/create/update/delete) using the existing actor-based pattern in frontend/src/hooks/useQueries.ts, including query invalidation so the Tool Palette refreshes immediately after custom tools are created/updated/deleted.",
+      "files": [
+        "frontend/src/hooks/useQueries.ts"
+      ],
+      "components": [
+        "authorization@1.0.1",
+        "blob-storage@2.0.3",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-3"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-extend-the-model-builder-tool-palette-frontend-src-components-modelbuilder-tsx-to-display-the-caller-s-custom-tools-alongside-built-in-ict-tools-and-allow-selecting-and-placing-custom-tools-into-zones-using-the-existing-unified-select-tool-select-zone-flow",
+      "featureTitle": "Extend the Model Builder Tool Palette (frontend/src/components/ModelBuilder.tsx) to display the caller’s Custom Tools alongside built-in ICT tools, and allow selecting and placing custom tools into zones using the existing unified \"select tool → select zone\" flow.",
+      "files": [
+        "frontend/src/components/ModelBuilder.tsx",
+        "frontend/src/components/ToolConfigDialog.tsx"
+      ],
+      "components": [
+        "authorization@1.0.1",
+        "blob-storage@2.0.3",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-4"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-add-a-frontend-ui-flow-to-create-edit-delete-custom-tool-definitions-including-a-form-that-lets-the-user-define-the-tool-name-and-its-properties-schema-field-list-with-field-type-select-text-number-toggle-per-field-label-for-select-fields-an-editable-options-list-per-field-default-value",
+      "featureTitle": "Add a frontend UI flow to create/edit/delete Custom Tool Definitions, including a form that lets the user define the tool name and its Properties schema (field list with field type: select/text/number/toggle; per-field label; for select fields, an editable options list; per-field default value).",
+      "files": [
+        "frontend/src/components/CustomToolManagerDialog.tsx",
+        "frontend/src/components/ModelBuilder.tsx",
+        "frontend/src/hooks/useQueries.ts"
+      ],
+      "components": [
+        "authorization@1.0.1",
+        "blob-storage@2.0.3",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-5"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-update-tool-configuration-rendering-so-that-when-configuring-an-instance-of-a-custom-tool-toolconfig-the-properties-tab-is-generated-from-that-custom-tool-definition-s-schema-not-from-tool-property-configs-while-keeping-the-existing-behavior-unchanged-for-built-in-tool-types",
+      "featureTitle": "Update tool configuration rendering so that when configuring an instance of a custom tool (ToolConfig), the Properties tab is generated from that custom tool definition’s schema (not from TOOL_PROPERTY_CONFIGS), while keeping the existing behavior unchanged for built-in tool types.",
+      "files": [
+        "frontend/src/components/ModelBuilder.tsx",
+        "frontend/src/components/ToolConfigDialog.tsx"
+      ],
+      "components": [
+        "authorization@1.0.1",
+        "blob-storage@2.0.3",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-6"
+      ],
+      "confidence": "high"
+    }
+  ]
+}

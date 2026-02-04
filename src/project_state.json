@@ -1,0 +1,350 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectStateVersion": 26,
+  "summary": "ICT Trading Logger is a full-stack Internet Computer (IC) dapp for ICT-methodology traders to create reusable trading models (Narrative/Framework/Execution zones), log trades using a unified position-sizer + OCO bracket structure, complete trades with per-bracket outcomes (TP/SL/break-even/manual close) and reflections (notes/emotions/images), and view performance dashboards and adherence-based analytics. The frontend is a React + Tailwind (shadcn/ui) app using Internet Identity for authentication and TanStack React Query for all canister interactions; the backend is a Motoko canister with role-based access control and in-canister storage for users, models, and trades, plus a separate blob-storage mixin module for Caffeine storage management APIs.",
+  "existing_features": [
+    {
+      "id": "IF-1",
+      "title": "Internet Identity authentication provider",
+      "synonyms": [
+        "Internet Identity login",
+        "II AuthClient integration"
+      ],
+      "description": "Provides login/logout and persistent delegation-based identity via @dfinity/auth-client, exposing loginStatus flags and identity to the app through a React context provider.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-2",
+      "title": "Identity-aware canister actor creation and query refresh",
+      "synonyms": [
+        "Actor hook",
+        "Authenticated/anonymous actor switching"
+      ],
+      "description": "Creates an anonymous actor when unauthenticated and an identity-authenticated actor when logged in; calls initializeAccessControl on actor creation and invalidates/refetches non-actor queries when identity changes.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-3",
+      "title": "Role-based access control (admin/user/guest)",
+      "synonyms": [
+        "RBAC",
+        "AccessControl module"
+      ],
+      "description": "Motoko access-control module assigns first initializer as admin and later initializers as users; enforces permissions for model/trade/profile operations and supports admin role assignment.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-4",
+      "title": "User profile retrieval and first-time profile setup",
+      "synonyms": [
+        "ProfileSetupModal",
+        "User onboarding"
+      ],
+      "description": "Fetches the caller’s profile (treating Unauthorized/Anonymous as null) and prompts authenticated users to create a profile name via a modal; saving a profile triggers backend registration logic.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-5",
+      "title": "Landing login prompt for unauthenticated users",
+      "synonyms": [
+        "Login screen",
+        "Unauthenticated landing page"
+      ],
+      "description": "Shows a marketing/feature overview page with a single Internet Identity login CTA when no identity is present.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-6",
+      "title": "Trading model CRUD (create/read/update/delete) with per-owner isolation",
+      "synonyms": [
+        "Model management",
+        "Model templates"
+      ],
+      "description": "Backend stores models keyed by id and enforces owner/admin access; frontend lists models, supports create/edit via builder, and deletes with confirmation dialog.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-7",
+      "title": "Drag-and-drop model builder with 3-zone workspace",
+      "synonyms": [
+        "ModelBuilder",
+        "Tool palette builder"
+      ],
+      "description": "Full-screen builder to compose an ICT model by dragging tools from a categorized palette into Narrative/Framework/Execution zones; includes responsive desktop sidebar + mobile sheet palette and long-press touch drag support.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-8",
+      "title": "Configurable ICT tool definitions (properties/interactions/actions)",
+      "synonyms": [
+        "ToolConfigDialog",
+        "Unified ICT tool config"
+      ],
+      "description": "Dialog for editing a tool’s JSON properties via a schema-like config (select/toggle/number/text), plus freeform interactions and actions lists; includes PD-array global flags like Structural State and Location vs Dealing Range.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-9",
+      "title": "Model preview and index-card style summary",
+      "synonyms": [
+        "ModelCardSummary",
+        "Model review dialog"
+      ],
+      "description": "Provides a responsive preview dialog that summarizes the model and extracts key properties (type/direction/timeframe/structural state) for a concise index-card presentation before saving.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-10",
+      "title": "Trade CRUD with per-owner isolation",
+      "synonyms": [
+        "Trade journal CRUD",
+        "Trade storage"
+      ],
+      "description": "Backend stores trades keyed by id and enforces owner/admin access; frontend lists trades and supports creating, editing, viewing details, and deleting trades.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-11",
+      "title": "Unified position sizing and OCO bracket group trade entry",
+      "synonyms": [
+        "TradeForm",
+        "Position sizer"
+      ],
+      "description": "Trade form supports risk-% or risk-$ sizing, asset type and unit value configuration, primary SL validation by direction, multiple OCO bracket groups, computed total position size, and a ‘Populate Brackets’ action to distribute calculated size evenly.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-12",
+      "title": "Primary stop-loss to bracket SL auto-sync with manual override",
+      "synonyms": [
+        "SL synchronization",
+        "sl_modified_by_user"
+      ],
+      "description": "Bracket stop-loss values auto-update when the primary stop-loss changes unless the user manually edited a bracket SL (tracked via sl_modified_by_user).",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-13",
+      "title": "Model condition checklist and adherence score persistence",
+      "synonyms": [
+        "Adherence scoring",
+        "Condition check"
+      ],
+      "description": "Fetches model-derived conditions grouped by zone, allows per-trade checkbox selection, computes adherence score, and persists the selected conditions into the trade record (including merged states on edit).",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-14",
+      "title": "Trade completion with per-bracket outcomes and reflections",
+      "synonyms": [
+        "TradeDetailDialog",
+        "Bracket outcome entry"
+      ],
+      "description": "Trade outcome dialog supports per-bracket closure selection (TP/SL) plus mutually exclusive per-bracket Break Even or Manual Close with price inputs; calculates P/L, P/L%, and R:R; saves notes/emotions/images and marks trade as completed via saveBracketOrderOutcome and trade update.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-15",
+      "title": "Image attachment handling for reflections (client-side base64)",
+      "synonyms": [
+        "Screenshot upload",
+        "Reflection images"
+      ],
+      "description": "Allows selecting multiple image files (type/size validation), shows previews, converts to base64 data URLs, and stores them in Trade.images for later display/removal.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-16",
+      "title": "Dashboard with key performance stats and equity curve",
+      "synonyms": [
+        "Overview dashboard",
+        "Equity chart"
+      ],
+      "description": "Displays total P/L, win rate, profit factor, average R:R, an equity curve line chart, recent trades, and top performing models with navigation shortcuts.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-17",
+      "title": "Analytics suite with adherence-focused insights",
+      "synonyms": [
+        "Analytics page",
+        "Performance charts"
+      ],
+      "description": "Tabbed analytics UI with overview charts (win/loss, direction), model comparisons, monthly trends, and adherence distribution/scatter visualizations; supports filtering by model.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-18",
+      "title": "Backend adherence analytics APIs",
+      "synonyms": [
+        "getAdherenceAnalytics",
+        "Trades by adherence range"
+      ],
+      "description": "Motoko endpoints compute average adherence and win rates for high/low adherence, and provide range-based filtering of trades by adherence score; frontend consumes these via React Query hooks.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-19",
+      "title": "Error boundary for resilient UI flows",
+      "synonyms": [
+        "React ErrorBoundary",
+        "Fallback UI"
+      ],
+      "description": "Wraps complex views (e.g., TradeForm) to catch render/runtime errors and present a safe fallback with reload option.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-20",
+      "title": "Caffeine blob-storage mixin APIs (gateway authorization, pruning, refill)",
+      "synonyms": [
+        "Blob storage canister functions",
+        "Storage mixin"
+      ],
+      "description": "Provides Motoko mixin endpoints for storage gateway principal updates, dead-blob listing/pruning, upload certificate creation, and cashier cycle refill logic using an environment-configured cashier principal.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-21",
+      "title": "URL parameter and secret-hash utilities",
+      "synonyms": [
+        "URL param helpers",
+        "Secret token extraction"
+      ],
+      "description": "Utility functions to read URL parameters from query/hash, persist them in sessionStorage, and securely extract secrets from hash fragments while clearing them from the URL.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-22",
+      "title": "Mobile Model Builder top-controls safe-area/nav offset",
+      "synonyms": [
+        "Model Builder header spacing fix",
+        "Mobile builder nav overlap fix"
+      ],
+      "description": "Adjusts the mobile Model Builder layout so the top builder controls render below the fixed top navigation bar (respecting header height/safe-area inset) to avoid overlap and ensure the Add Tools button/inputs remain visible and usable.",
+      "reqIds": [
+        "AR-1"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-react-query-hooks-for-custom-tool-definitions-list-create-update-delete-using-the-existing-actor-based-pattern-in-frontend-src-hooks-usequeries-ts-including-query-invalidation-so-the-tool-palette-refreshes-immediately-after-custom-tools-are-created-updated-deleted",
+      "title": "Add React Query hooks for Custom Tool Definitions (list/create/update/delete) using the existing actor-based pattern in frontend/src/hooks/useQueries.ts, including query invalidation so the Tool Palette refreshes immediately after custom tools are created/updated/deleted.",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-extend-the-model-builder-tool-palette-frontend-src-components-modelbuilder-tsx-to-display-the-caller-s-custom-tools-alongside-built-in-ict-tools-and-allow-selecting-and-placing-custom-tools-into-zones-using-the-existing-unified-select-tool-select-zone-flow",
+      "title": "Extend the Model Builder Tool Palette (frontend/src/components/ModelBuilder.tsx) to display the caller’s Custom Tools alongside built-in ICT tools, and allow selecting and placing custom tools into zones using the existing unified \"select tool → select zone\" flow.",
+      "reqIds": [
+        "REQ-4"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-a-frontend-ui-flow-to-create-edit-delete-custom-tool-definitions-including-a-form-that-lets-the-user-define-the-tool-name-and-its-properties-schema-field-list-with-field-type-select-text-number-toggle-per-field-label-for-select-fields-an-editable-options-list-per-field-default-value",
+      "title": "Add a frontend UI flow to create/edit/delete Custom Tool Definitions, including a form that lets the user define the tool name and its Properties schema (field list with field type: select/text/number/toggle; per-field label; for select fields, an editable options list; per-field default value).",
+      "reqIds": [
+        "REQ-5"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-tool-configuration-rendering-so-that-when-configuring-an-instance-of-a-custom-tool-toolconfig-the-properties-tab-is-generated-from-that-custom-tool-definition-s-schema-not-from-tool-property-configs-while-keeping-the-existing-behavior-unchanged-for-built-in-tool-types",
+      "title": "Update tool configuration rendering so that when configuring an instance of a custom tool (ToolConfig), the Properties tab is generated from that custom tool definition’s schema (not from TOOL_PROPERTY_CONFIGS), while keeping the existing behavior unchanged for built-in tool types.",
+      "reqIds": [
+        "REQ-6"
+      ],
+      "version": 1
+    }
+  ],
+  "new_feature_requests": [
+    {
+      "id": "AR-3",
+      "summary": "Mobile-only Model Builder tool add flow: replace drag-and-drop with tap-to-select an ICT tool (tool menu hides), then tap a target zone (Narrative/Framework/Execution) to place it; tool appends after existing tools left-to-right and wraps to next line when needed.",
+      "reqIds": [
+        "AR-2"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "id": "AR-4",
+      "summary": "Apply the new Model Builder tool-add flow (tap/click to select a tool, then select a target zone to place it) to non-mobile/desktop as well so all screen sizes use the same interaction pattern.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-5",
+      "summary": "Custom user-defined Model Builder tools: allow users to create/edit their own tools by defining a customizable Properties section (basic config inputs like dropdown/select, text input, toggle/slider, number, etc.), then surface these custom tools in the Tool Palette so they are usable in the model builder like built-in tools.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-6",
+      "summary": "Add backend support for user-owned Custom Tool Definitions that are private to the creating user, including canister methods to create, update, delete, get-by-id, and list the caller’s custom tools, with the same RBAC/ownership enforcement pattern used for Models/Trades (only the owner or an admin can access/modify).",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-7",
+      "summary": "Define a Custom Tool Definition data model that generalizes the tool \"Properties\" section using the same property input types as built-in tools (at minimum: select/dropdown with options, text input, number input, toggle/on-off), including labels and default values, and store it in canister state so it persists across calls for that user.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "status": "pending"
+    }
+  ],
+  "architectural_notes": [
+    "Frontend uses TanStack React Query for all canister reads/writes with explicit query keys and invalidation; actor identity changes invalidate/refetch dependent queries.",
+    "Authentication is handled via an InternetIdentityProvider (dfinity AuthClient) with persistent delegation and explicit login/logout status management.",
+    "Backend follows a simple service-layer style inside a single Motoko actor, using OrderedMap for in-memory maps (models, trades, userProfiles) keyed by Text/Principal.",
+    "Role-based access control is centralized in backend/authorization/access-control.mo with roles (#admin/#user/#guest) and admin assignment on first initialize call.",
+    "Model-building UX uses a drag-and-drop workspace with three semantic zones (Narrative/Framework/Execution) and a palette of ICT tools organized by categories; supports both mouse and long-press touch drag.",
+    "Tool configuration is data-driven (TOOL_PROPERTY_CONFIGS) with a unified pattern (select/toggle/number/text) plus shared PD-array flags.",
+    "Trade logging is designed around a ‘unified’ position sizing + OCO bracket group representation (primary SL + multiple bracket groups) persisted on the Trade object.",
+    "Analytics and charts are computed on the client from fetched trades/models (Recharts), supplemented by backend adherence analytics endpoints.",
+    "Backend includes a blob-storage mixin with gateway authorization + cashier cycle refill flows (Caffeine storage APIs), though frontend currently stores images as base64 in trade records.",
+    "Frontend/UI stack is standardized via a reusable build-template (React + Tailwind + shadcn/ui) and enforced with custom ESLint rules (e.g., no bigint in query keys, require InternetIdentityProvider)."
+  ],
+  "known_issues": [
+    "Backend ToolConfig type field naming appears inconsistent: Motoko defines ToolConfig.type_ but frontend code uses tool.type; this can cause candid/interface mismatches depending on codegen.",
+    "Backend validateTakeProfitOrderInternal/getBracketGroupIndexInternal appears incorrect: it looks up a trade by bracket_id in the trades map, which is not a trade id, likely breaking TP order validation.",
+    "All primary data structures (models, trades, userProfiles, access-control state) are not declared stable; canister upgrades would likely wipe data.",
+    "ensureUserRegistered calls AccessControl.getUserRole, which traps if a principal hasn’t been registered via initializeAccessControl; this makes direct calls fragile without the frontend’s initialization step.",
+    "Images are stored as base64 strings inside Trade.images (not via blob storage); this can bloat canister memory and exceed message/canister limits over time.",
+    "createModel/createTrade overwrite on id collision (no uniqueness enforcement) because OrderedMap.put replaces existing entries.",
+    "getModelConditions sets ModelCondition.description to tool.properties (JSON string), which is not inherently human-readable and couples UI parsing to stored JSON.",
+    "Frontend uses crypto.randomUUID(); older browsers/environments without this API will break model/trade creation.",
+    "Several backend bracket-order validation routines still reflect legacy ‘global’ break-even/manual-close assumptions, while the data model is now per-bracket, risking invalid validations.",
+    "No pagination/limits on getAllTrades/getAllModels; large datasets may cause slow queries and UI rendering issues."
+  ],
+  "isFixRequest": false,
+  "gameProjectType": "none",
+  "projectName": "ICT Trading Logger",
+  "clarification_mode": "pro",
+  "clarification_rounds": 0
+}

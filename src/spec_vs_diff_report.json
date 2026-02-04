@@ -1,0 +1,70 @@
+{
+  "kind": "spec_vs_diff_report",
+  "version": "1.0",
+  "generatedAt": "2026-02-04T21:55:50.804Z",
+  "summary": "Diff adds a frontend Custom Tool Manager dialog, integrates custom tools into ModelBuilder, and introduces React Query hooks for custom tool CRUD. Backend changes show a new migration module defining Custom Tool types, but the diff summary does not provide evidence of the required backend canister CRUD methods/state for custom tools or of full dynamic rendering of custom-tool instance properties in the ToolConfig dialog.",
+  "missing_requirements": [
+    {
+      "id": "REQ-1",
+      "requirement": "Backend support for user-owned Custom Tool Definitions with create/update/delete/get-by-id/list methods and RBAC/ownership enforcement (owner or admin only; anonymous rejected; cannot set/change owner).",
+      "reason": "The diff summary shows new Custom Tool types in a migration module, but does not show any new canister methods (create/update/delete/get/list) or RBAC enforcement logic for custom tools in backend/main.mo.",
+      "evidence": [
+        "backend/main.mo (truncated; no custom tool methods shown)",
+        "backend/migration.mo (type definitions only in shown portion)"
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "requirement": "Backend Custom Tool Definition data model for properties (select/text/number/toggle) with labels/options/defaults, stored in canister state and persisted across calls per user (properties only; no actions/interactions customization).",
+      "reason": "Types for custom tools/properties are defined in backend/migration.mo, but the diff summary does not show storage/state fields in the actor nor persistence logic (maps, stable variables, or CRUD integration) for custom tool definitions.",
+      "evidence": [
+        "backend/migration.mo (defines PropertyType/CustomProperty/CustomToolDefinition)",
+        "backend/main.mo (truncated; no customTools state shown)"
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "requirement": "Model Builder Tool Palette displays caller’s custom tools alongside built-ins and supports selecting a custom tool then selecting a zone to append a ToolConfig; cards show a human-readable name.",
+      "reason": "ModelBuilder.tsx is modified to import/use custom tools hooks and the manager dialog, but the diff excerpt is truncated before showing the actual palette rendering and tool placement logic for custom tools.",
+      "evidence": [
+        "frontend/src/components/ModelBuilder.tsx (truncated; shows imports useGetAllCustomTools and CustomToolManagerDialog but not placement/rendering logic)"
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "requirement": "Tool configuration rendering: for custom tool instances, generate Properties tab from the custom tool definition schema (not TOOL_PROPERTY_CONFIGS) with correct widgets/labels; built-ins unchanged; save persists into ToolConfig.properties JSON.",
+      "reason": "ToolConfigDialog.tsx shows new props (customToolsLookup, getToolName) suggesting custom-tool support, but the diff excerpt is truncated before any logic that actually renders properties from the custom schema or persists them.",
+      "evidence": [
+        "frontend/src/components/ToolConfigDialog.tsx (truncated; shows TOOL_PROPERTY_CONFIGS and new props but not custom schema rendering)"
+      ]
+    }
+  ],
+  "hallucinated_features": [
+    {
+      "description": "Introduced a backend data migration module defining OldActor/NewActor and migration plumbing beyond explicit custom tool CRUD requirements.",
+      "reason": "The BuildRequest did not request adding a migration system; it only constrained the backend to remain a single Motoko actor and requested custom tool CRUD/state. Adding migration infrastructure appears to be additional scope.",
+      "evidence": [
+        "backend/migration.mo",
+        "backend/main.mo (imports Migration and uses '(with migration = Migration.run)')"
+      ]
+    },
+    {
+      "description": "Custom tool UI validation requires at least one property field before saving.",
+      "reason": "REQ-5 requires validation for empty tool name and invalid select options, but does not require rejecting tools with zero properties; this is extra behavior.",
+      "evidence": [
+        "frontend/src/components/CustomToolManagerDialog.tsx (validateForm: `if (properties.length === 0) return 'At least one property is required';`)"
+      ]
+    }
+  ],
+  "confidence": 0.64,
+  "changed_files": [
+    "backend/main.mo",
+    "backend/migration.mo",
+    "frontend-file-summaries.txt",
+    "frontend/src/components/CustomToolManagerDialog.tsx",
+    "frontend/src/components/ModelBuilder.tsx",
+    "frontend/src/components/ToolConfigDialog.tsx",
+    "frontend/src/hooks/useQueries.ts",
+    "project_state.json"
+  ]
+}
