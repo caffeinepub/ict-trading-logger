@@ -24,6 +24,9 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
   // Form state
   const [toolName, setToolName] = useState('');
   const [properties, setProperties] = useState<CustomProperty[]>([]);
+  
+  // Draft state for options input (allows natural typing with commas/spaces)
+  const [optionsDrafts, setOptionsDrafts] = useState<Record<string, string>>({});
 
   const { data: customTools = [], isLoading } = useGetAllCustomTools();
   const createCustomTool = useCreateCustomTool();
@@ -35,9 +38,18 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
       setToolName('');
       setProperties([]);
       setEditingTool(null);
+      setOptionsDrafts({});
     } else if (mode === 'edit' && editingTool) {
       setToolName(editingTool.name);
       setProperties([...editingTool.properties]);
+      // Initialize drafts from existing properties
+      const drafts: Record<string, string> = {};
+      editingTool.properties.forEach(prop => {
+        if (prop.type === 'select') {
+          drafts[prop.id] = prop.options.join(', ');
+        }
+      });
+      setOptionsDrafts(drafts);
     }
   }, [mode, editingTool]);
 
@@ -50,10 +62,14 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
       options: [],
     };
     setProperties([...properties, newProperty]);
+    setOptionsDrafts({ ...optionsDrafts, [newProperty.id]: '' });
   };
 
   const handleRemoveProperty = (id: string) => {
     setProperties(properties.filter(p => p.id !== id));
+    const newDrafts = { ...optionsDrafts };
+    delete newDrafts[id];
+    setOptionsDrafts(newDrafts);
   };
 
   const handleMovePropertyUp = (index: number) => {
@@ -72,6 +88,21 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
 
   const handleUpdateProperty = (id: string, updates: Partial<CustomProperty>) => {
     setProperties(properties.map(p => p.id === id ? { ...p, ...updates } : p));
+  };
+
+  const handleOptionsInputChange = (propertyId: string, value: string) => {
+    // Update draft state to allow natural typing
+    setOptionsDrafts({ ...optionsDrafts, [propertyId]: value });
+  };
+
+  const handleOptionsInputBlur = (propertyId: string) => {
+    // Parse comma-separated values on blur
+    const draftValue = optionsDrafts[propertyId] || '';
+    const options = draftValue
+      .split(',')
+      .map(o => o.trim())
+      .filter(o => o);
+    handleUpdateProperty(propertyId, { options });
   };
 
   const validateForm = (): string | null => {
@@ -97,6 +128,20 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
   };
 
   const handleSave = async () => {
+    // Parse any remaining draft options before saving
+    properties.forEach(prop => {
+      if (prop.type === 'select' && optionsDrafts[prop.id]) {
+        const options = optionsDrafts[prop.id]
+          .split(',')
+          .map(o => o.trim())
+          .filter(o => o);
+        handleUpdateProperty(prop.id, { options });
+      }
+    });
+
+    // Small delay to ensure state updates
+    await new Promise(resolve => setTimeout(resolve, 0));
+
     const error = validateForm();
     if (error) {
       toast.error(error);
@@ -194,7 +239,13 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
           <Label htmlFor={`type-${property.id}`}>Input Type *</Label>
           <Select
             value={property.type}
-            onValueChange={(value) => handleUpdateProperty(property.id, { type: value as PropertyType })}
+            onValueChange={(value) => {
+              handleUpdateProperty(property.id, { type: value as PropertyType });
+              // Initialize draft for select type
+              if (value === 'select' && !optionsDrafts[property.id]) {
+                setOptionsDrafts({ ...optionsDrafts, [property.id]: property.options.join(', ') });
+              }
+            }}
           >
             <SelectTrigger id={`type-${property.id}`}>
               <SelectValue />
@@ -210,14 +261,13 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
 
         {property.type === 'select' && (
           <div className="space-y-2">
-            <Label>Options (comma-separated) *</Label>
+            <Label htmlFor={`options-${property.id}`}>Options (comma-separated) *</Label>
             <Input
-              value={property.options.join(', ')}
-              onChange={(e) => {
-                const options = e.target.value.split(',').map(o => o.trim()).filter(o => o);
-                handleUpdateProperty(property.id, { options });
-              }}
-              placeholder="e.g., Bullish, Bearish, Neutral"
+              id={`options-${property.id}`}
+              value={optionsDrafts[property.id] ?? property.options.join(', ')}
+              onChange={(e) => handleOptionsInputChange(property.id, e.target.value)}
+              onBlur={() => handleOptionsInputBlur(property.id)}
+              placeholder="e.g., New York, Los Angeles, London"
             />
             <p className="text-xs text-muted-foreground">
               {property.options.length} option(s)

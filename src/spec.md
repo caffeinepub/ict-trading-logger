@@ -1,14 +1,11 @@
 # Specification
 
 ## Summary
-**Goal:** Add private, per-user Custom Tool Definitions that can be created and managed by a user and then used in the Model Builder alongside built-in tools.
+**Goal:** Allow natural typing of commas and spaces in the “Options (comma-separated)” input within the Custom Tool Manager’s Custom Property editor without characters being stripped during entry.
 
 **Planned changes:**
-- Add backend canister support for user-owned Custom Tool Definitions (create/update/delete/get-by-id/list for caller), enforcing existing RBAC/ownership patterns (owner-only, admin access; reject anonymous; prevent changing owner).
-- Define and persist a Custom Tool Definition model that describes a tool’s Properties schema (select/text/number/toggle), including labels, default values, and select options.
-- Add React Query hooks for custom tools (list/create/update/delete) using existing actor-based patterns, with stable caching and invalidation so the Tool Palette refreshes after mutations and refetches on identity/actor changes.
-- Extend the Model Builder Tool Palette to show the caller’s custom tools alongside built-in tools, support selecting/placing them into zones using the existing flow, and display human-readable names for custom tool types.
-- Add a frontend UI flow to create/edit/delete custom tools, including a form to define tool name and an editable/reorderable Properties field list with validation.
-- Update tool configuration rendering so custom tool instances generate their Properties UI from the custom tool definition schema, while built-in tools continue using existing configs.
+- Adjust the “Options (comma-separated)” label/input behavior so the input preserves the user’s raw text while typing (including commas, spaces, multi-word entries, and trailing separators).
+- Parse the input into the underlying options array only at a non-disruptive time (e.g., on blur and/or on save), splitting by commas and trimming surrounding whitespace per option while preserving multi-word options.
+- Ensure select-property validation still requires at least one parsed option, without interfering with the typing experience.
 
-**User-visible outcome:** A signed-in user can create, edit, and delete their own private custom tools (properties-only), see them in the Tool Palette, place them into model zones like built-in tools, and configure their properties via a generated Properties tab; other non-admin users cannot see these custom tools.
+**User-visible outcome:** Users can type option lists like “New York, Los Angeles, London” into the Options field without commas/spaces disappearing mid-entry, and the system correctly saves them as separate options split by commas.

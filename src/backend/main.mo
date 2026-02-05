@@ -12,10 +12,10 @@ import Array "mo:base/Array";
 import Nat "mo:base/Nat";
 import Int "mo:base/Int";
 
-import Migration "migration";
+
 
 // Specify the data migration function in with-clause
-(with migration = Migration.run)
+
 actor {
   // Initialize the user system state
   let accessControlState = AccessControl.initState();

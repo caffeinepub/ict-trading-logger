@@ -1,138 +1,35 @@
 {
   "kind": "build_request",
-  "title": "Add private per-user custom tools to Model Builder tool palette",
+  "title": "Fix custom-tool select Options input to allow commas and spaces",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Add backend support for user-owned Custom Tool Definitions that are private to the creating user, including canister methods to create, update, delete, get-by-id, and list the caller’s custom tools, with the same RBAC/ownership enforcement pattern used for Models/Trades (only the owner or an admin can access/modify).",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "msg-4",
-          "msg-6",
-          "msg-10"
-        ],
-        "quotes": [
-          "we should give the ability for user to create their own custom tool.",
-          "they should be private for user",
-          "begin implementing the change"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Anonymous callers are rejected consistently with existing authorization behavior for user-owned resources.",
-        "A user can only list and retrieve their own custom tools (admin can access all, consistent with existing patterns).",
-        "Create/update/delete operations reject attempts to set/change owner to another principal."
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "text": "Define a Custom Tool Definition data model that generalizes the tool \"Properties\" section using the same property input types as built-in tools (at minimum: select/dropdown with options, text input, number input, toggle/on-off), including labels and default values, and store it in canister state so it persists across calls for that user.",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "msg-4",
-          "msg-6"
-        ],
-        "quotes": [
-          "The idea is to generalize the properties a tool can have... Specifically the properties section is what can be customized.",
-          "same properties"
-        ]
-      },
-      "acceptanceCriteria": [
-        "A custom tool definition can express property fields with type + label; select fields include an options list; fields can have default values.",
-        "Custom tool definitions do not include customizable interactions/actions (properties only)."
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "text": "Add React Query hooks for Custom Tool Definitions (list/create/update/delete) using the existing actor-based pattern in frontend/src/hooks/useQueries.ts, including query invalidation so the Tool Palette refreshes immediately after custom tools are created/updated/deleted.",
+      "text": "In the Custom Tool Manager dialog’s Custom Property editor, update the “Options (comma-separated)” label and its adjacent input (the selected elements) so the input field allows users to type commas and spaces naturally (including multi-word options and typing trailing commas/spaces while editing) without the UI immediately stripping those characters.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-10"
+          "msg-3"
         ],
         "quotes": [
-          "begin implementing the change"
+          "ive notices and issue with the 'comma-separated' where the input box doesnt allow me to use commas or spaces. Please update so i can actually utilize commas so multiple options are available as well as spaces as options may be multiple words."
         ]
       },
       "acceptanceCriteria": [
-        "Custom tools list is cached under a stable queryKey and invalidates after mutations.",
-        "When identity/actor changes, custom tools queries refetch consistently with existing patterns."
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "text": "Extend the Model Builder Tool Palette (frontend/src/components/ModelBuilder.tsx) to display the caller’s Custom Tools alongside built-in ICT tools, and allow selecting and placing custom tools into zones using the existing unified \"select tool → select zone\" flow.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-4",
-          "msg-6"
-        ],
-        "quotes": [
-          "Once user creates a custom tool, all their tools are visible in the Tool Palette and usable in model builder.",
-          "they should be private for user"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Custom tools appear in the Tool Palette for their owner after refresh and are not visible to other non-admin users.",
-        "Selecting a custom tool and then selecting a zone appends a new ToolConfig to that zone (same behavior as built-ins).",
-        "ModelBuilder tool cards display a human-readable name for custom tool types (not just the raw type id)."
-      ]
-    },
-    {
-      "id": "REQ-5",
-      "text": "Add a frontend UI flow to create/edit/delete Custom Tool Definitions, including a form that lets the user define the tool name and its Properties schema (field list with field type: select/text/number/toggle; per-field label; for select fields, an editable options list; per-field default value).",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-4",
-          "msg-6"
-        ],
-        "quotes": [
-          "give the ability for user to create their own custom tool.",
-          "under basic configuration user can add the standard inputs that the tools allow, like dropdown selection, input box and on/off slider etc."
-        ]
-      },
-      "acceptanceCriteria": [
-        "User can add/remove/reorder property fields in the custom tool definition UI.",
-        "Validation prevents saving a custom tool with an empty name or invalid select options (e.g., zero options).",
-        "Deleting a custom tool removes it from the Tool Palette after the next successful mutation/invalidation."
-      ]
-    },
-    {
-      "id": "REQ-6",
-      "text": "Update tool configuration rendering so that when configuring an instance of a custom tool (ToolConfig), the Properties tab is generated from that custom tool definition’s schema (not from TOOL_PROPERTY_CONFIGS), while keeping the existing behavior unchanged for built-in tool types.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-4",
-          "msg-6"
-        ],
-        "quotes": [
-          "generalize the properties a tool can have",
-          "same properties"
-        ]
-      },
-      "acceptanceCriteria": [
-        "For a custom tool instance, the Tool Config dialog shows the custom-defined property fields with the correct input widgets (select/text/number/toggle) and labels.",
-        "Saving a custom tool instance persists values into ToolConfig.properties JSON as today.",
-        "Built-in tool instances continue to use existing TOOL_PROPERTY_CONFIGS without regressions."
+        "When typing into the selected Options input, commas and spaces remain visible as typed (e.g., the user can type: \"New York, Los Angeles, London\" without characters being removed mid-entry).",
+        "Multi-word options containing spaces are preserved as single options (e.g., \"New York\" is treated as one option, not split).",
+        "Options are parsed by commas into the underlying options array (trimming leading/trailing whitespace around each option) at a time that does not interfere with typing (e.g., on blur and/or on save), so validation for select properties still correctly enforces at least one option."
       ]
     }
   ],
   "constraints": [
-    "Backend must remain a single Motoko actor in backend/main.mo; do not introduce additional backend services.",
-    "Do not edit frontend immutable paths: frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useInternetIdentity.tsx, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, and anything under frontend/src/components/ui.",
-    "Use English for any user-facing text.",
-    "Custom tools are private per user for now (no sharing/community features).",
-    "Custom tools support customizable Properties only (no customizable interactions/actions in the tool definition)."
+    "Apply changes ONLY to the selected label and input elements (the “Options (comma-separated)” label and its corresponding input in the Custom Tool Manager dialog property editor).",
+    "Do not modify any files under frontend/src/components/ui (shadcn/ui components are read-only).",
+    "Backend is single-actor Motoko; no backend changes are required for this request."
   ],
   "nonGoals": [
-    "Implementing community sharing/publishing of models or custom tools.",
-    "Adding new property input types beyond the existing set (select/text/number/toggle) in this iteration.",
-    "Fixing unrelated known issues (e.g., bracket validation bugs, stable upgrade persistence) unless directly required to support custom tools."
+    "Do not redesign the Custom Tool Manager dialog layout beyond the selected label/input behavior.",
+    "Do not introduce new tool/property types or change how tools are stored in the backend."
   ],
   "imageRequirements": {
     "required": [],

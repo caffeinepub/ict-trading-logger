@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 26,
+  "projectStateVersion": 31,
   "summary": "ICT Trading Logger is a full-stack Internet Computer (IC) dapp for ICT-methodology traders to create reusable trading models (Narrative/Framework/Execution zones), log trades using a unified position-sizer + OCO bracket structure, complete trades with per-bracket outcomes (TP/SL/break-even/manual close) and reflections (notes/emotions/images), and view performance dashboards and adherence-based analytics. The frontend is a React + Tailwind (shadcn/ui) app using Internet Identity for authentication and TanStack React Query for all canister interactions; the backend is a Motoko canister with role-based access control and in-canister storage for users, models, and trades, plus a separate blob-storage mixin module for Caffeine storage management APIs.",
   "existing_features": [
     {
@@ -248,34 +248,10 @@
       "version": 1
     },
     {
-      "id": "feature-add-react-query-hooks-for-custom-tool-definitions-list-create-update-delete-using-the-existing-actor-based-pattern-in-frontend-src-hooks-usequeries-ts-including-query-invalidation-so-the-tool-palette-refreshes-immediately-after-custom-tools-are-created-updated-deleted",
-      "title": "Add React Query hooks for Custom Tool Definitions (list/create/update/delete) using the existing actor-based pattern in frontend/src/hooks/useQueries.ts, including query invalidation so the Tool Palette refreshes immediately after custom tools are created/updated/deleted.",
+      "id": "feature-in-the-custom-tool-manager-dialog-s-custom-property-editor-update-the-options-comma-separated-label-and-its-adjacent-input-the-selected-elements-so-the-input-field-allows-users-to-type-commas-and-spaces-naturally-including-multi-word-options-and-typing-trailing-commas-spaces-while-editing-without-the-ui-immediately-stripping-those-characters",
+      "title": "In the Custom Tool Manager dialog’s Custom Property editor, update the “Options (comma-separated)” label and its adjacent input (the selected elements) so the input field allows users to type commas and spaces naturally (including multi-word options and typing trailing commas/spaces while editing) without the UI immediately stripping those characters.",
       "reqIds": [
-        "REQ-3"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-extend-the-model-builder-tool-palette-frontend-src-components-modelbuilder-tsx-to-display-the-caller-s-custom-tools-alongside-built-in-ict-tools-and-allow-selecting-and-placing-custom-tools-into-zones-using-the-existing-unified-select-tool-select-zone-flow",
-      "title": "Extend the Model Builder Tool Palette (frontend/src/components/ModelBuilder.tsx) to display the caller’s Custom Tools alongside built-in ICT tools, and allow selecting and placing custom tools into zones using the existing unified \"select tool → select zone\" flow.",
-      "reqIds": [
-        "REQ-4"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-add-a-frontend-ui-flow-to-create-edit-delete-custom-tool-definitions-including-a-form-that-lets-the-user-define-the-tool-name-and-its-properties-schema-field-list-with-field-type-select-text-number-toggle-per-field-label-for-select-fields-an-editable-options-list-per-field-default-value",
-      "title": "Add a frontend UI flow to create/edit/delete Custom Tool Definitions, including a form that lets the user define the tool name and its Properties schema (field list with field type: select/text/number/toggle; per-field label; for select fields, an editable options list; per-field default value).",
-      "reqIds": [
-        "REQ-5"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-update-tool-configuration-rendering-so-that-when-configuring-an-instance-of-a-custom-tool-toolconfig-the-properties-tab-is-generated-from-that-custom-tool-definition-s-schema-not-from-tool-property-configs-while-keeping-the-existing-behavior-unchanged-for-built-in-tool-types",
-      "title": "Update tool configuration rendering so that when configuring an instance of a custom tool (ToolConfig), the Properties tab is generated from that custom tool definition’s schema (not from TOOL_PROPERTY_CONFIGS), while keeping the existing behavior unchanged for built-in tool types.",
-      "reqIds": [
-        "REQ-6"
+        "REQ-1"
       ],
       "version": 1
     }
@@ -303,18 +279,8 @@
     },
     {
       "id": "AR-6",
-      "summary": "Add backend support for user-owned Custom Tool Definitions that are private to the creating user, including canister methods to create, update, delete, get-by-id, and list the caller’s custom tools, with the same RBAC/ownership enforcement pattern used for Models/Trades (only the owner or an admin can access/modify).",
-      "reqIds": [
-        "REQ-1"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-7",
-      "summary": "Define a Custom Tool Definition data model that generalizes the tool \"Properties\" section using the same property input types as built-in tools (at minimum: select/dropdown with options, text input, number input, toggle/on-off), including labels and default values, and store it in canister state so it persists across calls for that user.",
-      "reqIds": [
-        "REQ-2"
-      ],
+      "summary": "Fix custom-tool Properties 'comma-separated' input so users can type commas and spaces (support multi-word and multiple options) with proper parsing/validation.",
+      "reqIds": [],
       "status": "pending"
     }
   ],
@@ -333,16 +299,16 @@
   "known_issues": [
     "Backend ToolConfig type field naming appears inconsistent: Motoko defines ToolConfig.type_ but frontend code uses tool.type; this can cause candid/interface mismatches depending on codegen.",
     "Backend validateTakeProfitOrderInternal/getBracketGroupIndexInternal appears incorrect: it looks up a trade by bracket_id in the trades map, which is not a trade id, likely breaking TP order validation.",
-    "All primary data structures (models, trades, userProfiles, access-control state) are not declared stable; canister upgrades would likely wipe data.",
     "ensureUserRegistered calls AccessControl.getUserRole, which traps if a principal hasn’t been registered via initializeAccessControl; this makes direct calls fragile without the frontend’s initialization step.",
     "Images are stored as base64 strings inside Trade.images (not via blob storage); this can bloat canister memory and exceed message/canister limits over time.",
     "createModel/createTrade overwrite on id collision (no uniqueness enforcement) because OrderedMap.put replaces existing entries.",
     "getModelConditions sets ModelCondition.description to tool.properties (JSON string), which is not inherently human-readable and couples UI parsing to stored JSON.",
     "Frontend uses crypto.randomUUID(); older browsers/environments without this API will break model/trade creation.",
     "Several backend bracket-order validation routines still reflect legacy ‘global’ break-even/manual-close assumptions, while the data model is now per-bracket, risking invalid validations.",
-    "No pagination/limits on getAllTrades/getAllModels; large datasets may cause slow queries and UI rendering issues."
+    "No pagination/limits on getAllTrades/getAllModels; large datasets may cause slow queries and UI rendering issues.",
+    "Custom-tool Properties 'comma-separated' input currently prevents typing commas and spaces, making it impossible to enter multiple options or multi-word options; needs input parsing/validation update to allow commas and spaces."
   ],
-  "isFixRequest": false,
+  "isFixRequest": true,
   "gameProjectType": "none",
   "projectName": "ICT Trading Logger",
   "clarification_mode": "pro",
