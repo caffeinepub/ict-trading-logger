@@ -1,24 +1,65 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-04T23:58:18.307Z",
+  "generatedAt": "2026-02-07T20:09:45.890Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 1,
-    "implemented": 1,
+    "total": 4,
+    "implemented": 4,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "In the Custom Tool Manager dialog’s Custom Property editor, update the “Options (comma-separated)” label and its adjacent input (the selected elements) so the input field allows users to type commas and spaces naturally (including multi-word options and typing trailing commas/spaces while editing) without the UI immediately stripping those characters.",
+        "summary": "Remove the Trade Logger modal behavior and render the Trade Logger (trade creation/edit) UI inline within the Trades (Trade Journal) page instead of inside a popup dialog.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/components/CustomToolManagerDialog.tsx"
+          "frontend/src/pages/Trades.tsx",
+          "frontend/src/components/TradeForm.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/components/CustomToolManagerDialog.tsx"
+          "frontend/src/pages/Trades.tsx",
+          "frontend/src/components/TradeForm.tsx"
+        ]
+      },
+      {
+        "id": "REQ-2",
+        "summary": "Change the Trade Logger open/close flow on the Trades page to behave like an inline 'Create Model' style experience: clicking \"Log Trade\" (and the Live Setup Identifier's \"Log Trade\" action) should reveal the inline Trade Logger section within the Trades page (not a new tab and not a modal), and closing should return the user to the normal Trade Journal list view.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/pages/Trades.tsx",
+          "frontend/src/components/TradeForm.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/pages/Trades.tsx",
+          "frontend/src/components/TradeForm.tsx"
+        ]
+      },
+      {
+        "id": "REQ-3",
+        "summary": "Keep the Trade Logger UI layout and fields practically the same as the current modal version while converting it to inline rendering (i.e., reuse the same form sections, inputs, and interactions).",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/TradeForm.tsx",
+          "frontend/src/pages/Trades.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/TradeForm.tsx",
+          "frontend/src/pages/Trades.tsx"
+        ]
+      },
+      {
+        "id": "REQ-4",
+        "summary": "Update any Trade Logger-specific layout/styling that was tied to a Radix Dialog (e.g., dialog content sizing/overflow rules) so the inline Trade Logger remains full-width, vertically stacked, and overflow-safe when rendered inside the Trades page container.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/index.css",
+          "frontend/src/components/TradeForm.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/index.css",
+          "frontend/src/components/TradeForm.tsx"
         ]
       }
     ]
@@ -28,7 +69,9 @@
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/components/CustomToolManagerDialog.tsx",
+    "frontend/src/components/TradeForm.tsx",
+    "frontend/src/index.css",
+    "frontend/src/pages/Trades.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

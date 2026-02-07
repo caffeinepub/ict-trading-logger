@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { Plus, X, Save, Trash2, ChevronUp, ChevronDown, Edit2, ArrowLeft } from 'lucide-react';
 import { useGetAllCustomTools, useCreateCustomTool, useUpdateCustomTool, useDeleteCustomTool } from '../hooks/useQueries';
+import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import type { CustomToolDefinition, CustomProperty, PropertyType } from '../backend';
 
 interface CustomToolManagerDialogProps {
@@ -32,6 +33,7 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
   const createCustomTool = useCreateCustomTool();
   const updateCustomTool = useUpdateCustomTool();
   const deleteCustomTool = useDeleteCustomTool();
+  const { identity } = useInternetIdentity();
 
   useEffect(() => {
     if (mode === 'create') {
@@ -128,6 +130,11 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
   };
 
   const handleSave = async () => {
+    if (!identity) {
+      toast.error('You must be logged in to save custom tools');
+      return;
+    }
+
     // Parse any remaining draft options before saving
     properties.forEach(prop => {
       if (prop.type === 'select' && optionsDrafts[prop.id]) {
@@ -150,10 +157,14 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
 
     try {
       if (mode === 'create') {
+        const now = BigInt(Date.now() * 1000000);
         await createCustomTool.mutateAsync({
           id: crypto.randomUUID(),
           name: toolName.trim(),
           properties,
+          owner: identity.getPrincipal(),
+          created_at: now,
+          updated_at: now,
         });
         toast.success('Custom tool created successfully!');
       } else if (mode === 'edit' && editingTool) {
@@ -161,6 +172,7 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
           ...editingTool,
           name: toolName.trim(),
           properties,
+          updated_at: BigInt(Date.now() * 1000000),
         });
         toast.success('Custom tool updated successfully!');
       }

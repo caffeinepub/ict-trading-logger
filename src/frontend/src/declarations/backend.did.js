@@ -275,7 +275,7 @@ export const idlService = IDL.Service({
   'updateCustomTool' : IDL.Func([CustomToolDefinition], [IDL.Text], []),
   'updateModel' : IDL.Func([Model], [], []),
   'updateModelAnalytics' : IDL.Func(
-      [IDL.Text, IDL.Principal],
+      [IDL.Text],
       [
         IDL.Record({
           'totalTrades' : IDL.Float64,
@@ -590,7 +590,7 @@ export const idlFactory = ({ IDL }) => {
     'updateCustomTool' : IDL.Func([CustomToolDefinition], [IDL.Text], []),
     'updateModel' : IDL.Func([Model], [], []),
     'updateModelAnalytics' : IDL.Func(
-        [IDL.Text, IDL.Principal],
+        [IDL.Text],
         [
           IDL.Record({
             'totalTrades' : IDL.Float64,

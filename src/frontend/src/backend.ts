@@ -289,7 +289,7 @@ export interface backendInterface {
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     updateCustomTool(tool: CustomToolDefinition): Promise<string>;
     updateModel(model: Model): Promise<void>;
-    updateModelAnalytics(model_id: string, caller_principal: Principal): Promise<{
+    updateModelAnalytics(model_id: string): Promise<{
         totalTrades: number;
         avgPL: number;
         avgRR: number;
@@ -884,7 +884,7 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async updateModelAnalytics(arg0: string, arg1: Principal): Promise<{
+    async updateModelAnalytics(arg0: string): Promise<{
         totalTrades: number;
         avgPL: number;
         avgRR: number;
@@ -896,14 +896,14 @@ export class Backend implements backendInterface {
     }> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateModelAnalytics(arg0, arg1);
+                const result = await this.actor.updateModelAnalytics(arg0);
                 return from_candid_record_n56(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateModelAnalytics(arg0, arg1);
+            const result = await this.actor.updateModelAnalytics(arg0);
             return from_candid_record_n56(this._uploadFile, this._downloadFile, result);
         }
     }

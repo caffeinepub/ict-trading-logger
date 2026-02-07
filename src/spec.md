@@ -1,11 +1,12 @@
 # Specification
 
 ## Summary
-**Goal:** Allow natural typing of commas and spaces in the “Options (comma-separated)” input within the Custom Tool Manager’s Custom Property editor without characters being stripped during entry.
+**Goal:** Replace the Trade Logger modal with an inline Trade Logger experience embedded directly within the Trades (Trade Journal) page.
 
 **Planned changes:**
-- Adjust the “Options (comma-separated)” label/input behavior so the input preserves the user’s raw text while typing (including commas, spaces, multi-word entries, and trailing separators).
-- Parse the input into the underlying options array only at a non-disruptive time (e.g., on blur and/or on save), splitting by commas and trimming surrounding whitespace per option while preserving multi-word options.
-- Ensure select-property validation still requires at least one parsed option, without interfering with the typing experience.
+- Remove modal/dialog behavior for the Trade Logger so it no longer opens as an overlay.
+- Render the existing Trade Logger create/edit UI inline within the Trades (Trade Journal) page layout.
+- Update the Trades page flow so “Log Trade” (including the Live Setup Identifier “Log Trade”) reveals the inline Trade Logger section and close/cancel returns to the normal Trade Journal list view on the same route.
+- Adapt any Trade Logger styling/layout previously tied to Radix Dialog so the inline version is full-width, vertically stacked, responsive, and avoids horizontal overflow (including when dynamic model-adherence/conditions sections appear).
 
-**User-visible outcome:** Users can type option lists like “New York, Los Angeles, London” into the Options field without commas/spaces disappearing mid-entry, and the system correctly saves them as separate options split by commas.
+**User-visible outcome:** On the Trades page, clicking “Log Trade” opens the Trade Logger inline (no modal/backdrop), supports both create and edit as before (including preloaded model/observations from Live Setup Identifier), and can be closed to return to the Trade Journal list view without leaving the page.

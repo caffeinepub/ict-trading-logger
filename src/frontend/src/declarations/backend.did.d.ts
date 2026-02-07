@@ -216,7 +216,7 @@ export interface _SERVICE {
   'updateCustomTool' : ActorMethod<[CustomToolDefinition], string>,
   'updateModel' : ActorMethod<[Model], undefined>,
   'updateModelAnalytics' : ActorMethod<
-    [string, Principal],
+    [string],
     {
       'totalTrades' : number,
       'avgPL' : number,

@@ -190,7 +190,7 @@ export interface backendInterface {
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     updateCustomTool(tool: CustomToolDefinition): Promise<string>;
     updateModel(model: Model): Promise<void>;
-    updateModelAnalytics(model_id: string, caller_principal: Principal): Promise<{
+    updateModelAnalytics(model_id: string): Promise<{
         totalTrades: number;
         avgPL: number;
         avgRR: number;

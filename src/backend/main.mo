@@ -92,7 +92,12 @@ actor {
   };
 
   public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
-    // Only admins can view other users' profiles
+    // Users can only view their own profile, admins can view any profile
+    let anonymousPrincipal = Principal.fromText("2vxsx-fae");
+    if (caller == anonymousPrincipal) {
+      Debug.trap("Unauthorized: Anonymous users cannot access profiles");
+    };
+    
     if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
       Debug.trap("Unauthorized: Cannot view another users profile");
     };
@@ -710,13 +715,12 @@ actor {
 
   // Helper functions - getCurrentTime accessible to all including guests
   public query func getCurrentTime() : async Int {
-    // No authorization check - utility function accessible to all
+    // Utility function accessible to all users (including guests)
     Time.now();
   };
 
   // Enhanced validation functions - require user role
   public query ({ caller }) func validateBracketGroups(bracket_groups : [BracketGroup], direction : Text) : async Bool {
-    ensureUserRegistered(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Debug.trap("Unauthorized: Only users can validate bracket groups");
     };
@@ -738,7 +742,6 @@ actor {
   public query ({ caller }) func validateOutcomeSequence(
     filled_bracket_groups : [FilledBracketGroup],
   ) : async Bool {
-    ensureUserRegistered(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Debug.trap("Unauthorized: Only users can validate outcome sequence");
     };
@@ -757,7 +760,6 @@ actor {
     #invalid_stop_loss_adjustment;
     #invalid_event_combination;
   } {
-    ensureUserRegistered(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Debug.trap("Unauthorized: Only users can validate bracket order rules");
     };
@@ -992,7 +994,7 @@ actor {
     };
   };
 
-  public shared ({ caller }) func updateModelAnalytics(model_id : Text, caller_principal : Principal) : async {
+  public shared ({ caller }) func updateModelAnalytics(model_id : Text) : async {
     totalTrades : Float;
     totalWins : Float;
     totalPL : Float;
@@ -1012,17 +1014,11 @@ actor {
       Debug.trap("Unauthorized: Only users can update model analytics");
     };
 
-    // Verify caller is updating their own analytics or is admin
-    if (caller != caller_principal and not AccessControl.isAdmin(accessControlState, caller)) {
-      Debug.trap("Unauthorized: Cannot update analytics for another user");
-    };
-
-    updateModelAnalyticsInternal(model_id, caller_principal);
+    updateModelAnalyticsInternal(model_id, caller);
   };
 
   // Helper function for calculating total allocation
   public query ({ caller }) func getTotalAllocation(bracket_groups : [BracketGroup]) : async Float {
-    ensureUserRegistered(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Debug.trap("Unauthorized: Only users can get total allocation");
     };
@@ -1037,7 +1033,6 @@ actor {
 
   // Updated function to map trade conditions to model conditions
   public query ({ caller }) func mapTradeConditionsToModel(trade_conditions : [ModelCondition], model_conditions : [ModelCondition]) : async [ModelCondition] {
-    ensureUserRegistered(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Debug.trap("Unauthorized: Only users can map trade conditions");
     };
@@ -1139,7 +1134,6 @@ actor {
 
   // New function to calculate adherence score
   public query ({ caller }) func calculateAdherenceScore(conditions : [ModelCondition]) : async Float {
-    ensureUserRegistered(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Debug.trap("Unauthorized: Only users can calculate adherence score");
     };
@@ -1233,5 +1227,3 @@ actor {
     };
   };
 };
-
-

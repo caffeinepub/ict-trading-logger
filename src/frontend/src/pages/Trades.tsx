@@ -4,12 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, TrendingUp, TrendingDown, Eye, Pencil, Trash2 } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, Eye, Pencil, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import TradeForm from '../components/TradeForm';
 import TradeDetailDialog from '../components/TradeDetailDialog';
+import SetupIdentifier from '../components/SetupIdentifier';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import type { Trade } from '../backend';
+import type { Trade, ModelCondition } from '../backend';
 
 export default function Trades() {
   const { data: trades = [], isLoading: tradesLoading } = useGetAllTrades();
@@ -22,9 +23,15 @@ export default function Trades() {
   const [filterModel, setFilterModel] = useState<string>('all');
   const [filterAsset, setFilterAsset] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date' | 'rr'>('date');
+  
+  // Setup identifier state
+  const [preloadedModelId, setPreloadedModelId] = useState<string | null>(null);
+  const [preloadedObservations, setPreloadedObservations] = useState<ModelCondition[]>([]);
 
   const handleEdit = (trade: Trade) => {
     setEditingTrade(trade);
+    setPreloadedModelId(null);
+    setPreloadedObservations([]);
     setShowForm(true);
   };
 
@@ -41,6 +48,22 @@ export default function Trades() {
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingTrade(null);
+    setPreloadedModelId(null);
+    setPreloadedObservations([]);
+  };
+
+  const handleOpenNewTradeForm = () => {
+    setEditingTrade(null);
+    setPreloadedModelId(null);
+    setPreloadedObservations([]);
+    setShowForm(true);
+  };
+
+  const handleSelectModelFromIdentifier = (modelId: string, observations: ModelCondition[]) => {
+    setEditingTrade(null);
+    setPreloadedModelId(modelId);
+    setPreloadedObservations(observations);
+    setShowForm(true);
   };
 
   // Helper function to determine trade status
@@ -97,6 +120,38 @@ export default function Trades() {
     );
   }
 
+  // If form is showing, render only the form inline
+  if (showForm) {
+    return (
+      <ErrorBoundary>
+        <div className="container mx-auto p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">
+                {editingTrade ? 'Edit Trade' : 'Log Trade'}
+              </h1>
+              <p className="text-muted-foreground">
+                {editingTrade ? 'Update trade details' : 'Record a new trade'}
+              </p>
+            </div>
+            <Button variant="outline" onClick={handleCloseForm} className="gap-2">
+              <X className="w-4 h-4" />
+              Back to Journal
+            </Button>
+          </div>
+          
+          <TradeForm 
+            trade={editingTrade} 
+            models={models} 
+            onClose={handleCloseForm}
+            preloadedModelId={preloadedModelId}
+            preloadedObservations={preloadedObservations}
+          />
+        </div>
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <div className="container mx-auto p-6 space-y-6">
@@ -105,11 +160,14 @@ export default function Trades() {
             <h1 className="text-3xl font-bold">Trade Journal</h1>
             <p className="text-muted-foreground">Track and analyze your trading performance</p>
           </div>
-          <Button onClick={() => setShowForm(true)} className="gap-2">
+          <Button onClick={handleOpenNewTradeForm} className="gap-2">
             <Plus className="w-4 h-4" />
             Log Trade
           </Button>
         </div>
+
+        {/* Setup Identifier */}
+        <SetupIdentifier onSelectModel={handleSelectModelFromIdentifier} />
 
         <div className="flex gap-4 flex-wrap">
           <Select value={filterModel} onValueChange={setFilterModel}>
@@ -155,7 +213,7 @@ export default function Trades() {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <p className="text-muted-foreground mb-4">No trades found</p>
-              <Button onClick={() => setShowForm(true)} className="gap-2">
+              <Button onClick={handleOpenNewTradeForm} className="gap-2">
                 <Plus className="w-4 h-4" />
                 Log Your First Trade
               </Button>
@@ -241,29 +299,13 @@ export default function Trades() {
           </div>
         )}
 
-        {showForm && (
-          <ErrorBoundary
-            fallback={
-              <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-                <Card className="max-w-md">
-                  <CardHeader>
-                    <CardTitle>Error Loading Form</CardTitle>
-                    <CardDescription>
-                      There was an error loading the trade form. Please try again.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Button onClick={handleCloseForm}>Close</Button>
-                  </CardContent>
-                </Card>
-              </div>
-            }
-          >
-            <TradeForm trade={editingTrade} models={models} onClose={handleCloseForm} />
-          </ErrorBoundary>
+        {viewingTrade && (
+          <TradeDetailDialog 
+            trade={viewingTrade} 
+            open={!!viewingTrade} 
+            onClose={() => setViewingTrade(null)} 
+          />
         )}
-
-        {viewingTrade && <TradeDetailDialog trade={viewingTrade} onClose={() => setViewingTrade(null)} />}
       </div>
     </ErrorBoundary>
   );
