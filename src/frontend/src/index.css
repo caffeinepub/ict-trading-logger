@@ -139,70 +139,67 @@
 
 /* Ensure scroll areas only scroll vertically and contain content */
 .trade-form-inline [data-radix-scroll-area-viewport] {
-    overflow-x: hidden !important;
+    overflow-x: hidden;
     overflow-y: auto;
+}
+
+/* Trade Outcome Inline - Responsive Layout with Vertical Stacking */
+.trade-outcome-inline {
+    /* Ensure full-width container behavior */
+    width: 100%;
     max-width: 100%;
+    
+    /* Critical: Prevent horizontal overflow */
+    overflow-x: hidden;
+    box-sizing: border-box;
 }
 
-/* Make all spacing containers responsive */
-.trade-form-inline .space-y-2,
-.trade-form-inline .space-y-3,
-.trade-form-inline .space-y-4,
-.trade-form-inline .space-y-6,
-.trade-form-inline [class*="space-y"] {
-    min-width: 0;
-    max-width: 100%;
-}
-
-/* Ensure input fields, selects, and buttons are responsive */
-.trade-form-inline input,
-.trade-form-inline select,
-.trade-form-inline button,
-.trade-form-inline textarea {
-    min-width: 0;
-    max-width: 100%;
-}
-
-/* Make labels wrap text instead of overflowing */
-.trade-form-inline label {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    hyphens: auto;
-    min-width: 0;
-}
-
-/* Ensure text content wraps properly */
-.trade-form-inline p,
-.trade-form-inline span,
-.trade-form-inline div {
-    word-wrap: break-word;
-    overflow-wrap: anywhere;
-    min-width: 0;
-}
-
-/* Make alert descriptions wrap */
-.trade-form-inline [role="alert"] {
+/* Force all children to respect container width and shrink properly */
+.trade-outcome-inline *,
+.trade-outcome-inline *::before,
+.trade-outcome-inline *::after {
     min-width: 0;
     max-width: 100%;
+    box-sizing: border-box;
 }
 
-/* Ensure all Card components stack vertically and shrink properly */
-.trade-form-inline [class*="Card"],
-.trade-form-inline [data-card] {
+/* Make all flex containers shrink-safe */
+.trade-outcome-inline .flex,
+.trade-outcome-inline [class*="flex"] {
+    min-width: 0;
+}
+
+/* Make all grid containers shrink-safe and wrap properly */
+.trade-outcome-inline .grid,
+.trade-outcome-inline [class*="grid"] {
     min-width: 0;
     width: 100%;
 }
 
-/* Ensure gap containers don't overflow */
-.trade-form-inline .gap-4,
-.trade-form-inline .gap-6,
-.trade-form-inline [class*="gap-"] {
+/* Ensure Card components are full-width and shrink-safe */
+.trade-outcome-inline > div {
     min-width: 0;
+    width: 100%;
 }
 
-/* Make Progress and Badge components responsive */
-.trade-form-inline [role="progressbar"],
-.trade-form-inline [data-badge] {
-    min-width: 0;
-    max-width: 100%;
+/* Prevent tables from forcing horizontal scroll */
+.trade-outcome-inline table {
+    width: 100%;
+    table-layout: auto;
+    overflow-x: auto;
+    display: block;
+}
+
+.trade-outcome-inline thead,
+.trade-outcome-inline tbody,
+.trade-outcome-inline tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}
+
+/* Ensure scroll areas only scroll vertically and contain content */
+.trade-outcome-inline [data-radix-scroll-area-viewport] {
+    overflow-x: hidden;
+    overflow-y: auto;
 }

@@ -1,25 +1,30 @@
 import { useState } from 'react';
-import { useGetAllTrades, useGetAllModels, useDeleteTrade } from '../hooks/useQueries';
+import { useGetAllTrades, useGetAllModels, useDeleteTrade, useUpdateTrade } from '../hooks/useQueries';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, TrendingUp, TrendingDown, Eye, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, Eye, Pencil, Trash2, X, Target } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import TradeForm from '../components/TradeForm';
 import TradeDetailDialog from '../components/TradeDetailDialog';
+import TradeOutcomeEditor from '../components/trade/TradeOutcomeEditor';
 import SetupIdentifier from '../components/SetupIdentifier';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import type { Trade, ModelCondition } from '../backend';
+import { computeTradePLFromOutcomes, computeTradeRRFromOutcomes, isTradeWinner } from '../utils/trade/tradeMetrics';
 
 export default function Trades() {
   const { data: trades = [], isLoading: tradesLoading } = useGetAllTrades();
   const { data: models = [], isLoading: modelsLoading } = useGetAllModels();
   const deleteTrade = useDeleteTrade();
+  const updateTrade = useUpdateTrade();
 
   const [showForm, setShowForm] = useState(false);
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
   const [viewingTrade, setViewingTrade] = useState<Trade | null>(null);
+  const [outcomeTrade, setOutcomeTrade] = useState<Trade | null>(null);
   const [filterModel, setFilterModel] = useState<string>('all');
   const [filterAsset, setFilterAsset] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date' | 'rr'>('date');
@@ -66,19 +71,35 @@ export default function Trades() {
     setShowForm(true);
   };
 
+  const handleOpenOutcome = (trade: Trade) => {
+    setOutcomeTrade(trade);
+  };
+
+  const handleCloseOutcome = () => {
+    setOutcomeTrade(null);
+  };
+
+  const handleSaveOutcome = async (updatedTrade: Trade) => {
+    try {
+      await updateTrade.mutateAsync(updatedTrade);
+      toast.success('Trade outcome saved successfully!');
+      handleCloseOutcome();
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to save trade outcome');
+      console.error(error);
+    }
+  };
+
   // Helper function to determine trade status
   const getTradeStatus = (trade: Trade): { label: string; variant: 'default' | 'destructive' | 'secondary'; isOpen: boolean } => {
-    // Check if trade has a defined outcome
-    const hasOutcome = trade.is_completed && 
-                       trade.bracket_order_outcome && 
-                       trade.bracket_order_outcome.filled_bracket_groups && 
-                       trade.bracket_order_outcome.filled_bracket_groups.length > 0;
+    // Check if trade has outcomes
+    const hasOutcome = trade.is_completed && trade.bracket_order_outcomes && trade.bracket_order_outcomes.length > 0;
     
     if (!hasOutcome) {
       return { label: 'Open', variant: 'secondary', isOpen: true };
     }
     
-    const isWin = trade.bracket_order_outcome.final_pl_usd > 0;
+    const isWin = isTradeWinner(trade);
     return { 
       label: isWin ? 'Win' : 'Loss', 
       variant: isWin ? 'default' : 'destructive',
@@ -101,8 +122,8 @@ export default function Trades() {
         return Number(b.created_at) - Number(a.created_at);
       } else {
         // For open trades, use 0 for R:R comparison
-        const aRR = getTradeStatus(a).isOpen ? 0 : a.bracket_order_outcome.rr;
-        const bRR = getTradeStatus(b).isOpen ? 0 : b.bracket_order_outcome.rr;
+        const aRR = getTradeStatus(a).isOpen ? 0 : computeTradeRRFromOutcomes(a);
+        const bRR = getTradeStatus(b).isOpen ? 0 : computeTradeRRFromOutcomes(b);
         return bRR - aRR;
       }
     });
@@ -120,21 +141,50 @@ export default function Trades() {
     );
   }
 
+  // If outcome editor is showing, render full-page outcome editor
+  if (outcomeTrade) {
+    return (
+      <ErrorBoundary>
+        <div className="container mx-auto p-4 sm:p-6 max-w-full overflow-x-hidden">
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl sm:text-3xl font-bold">Trade Outcome</h1>
+              <p className="text-sm sm:text-base text-muted-foreground break-words">
+                Record the outcome for {outcomeTrade.asset} {outcomeTrade.direction.toUpperCase()}
+              </p>
+            </div>
+            <Button variant="outline" onClick={handleCloseOutcome} className="gap-2 shrink-0 w-full sm:w-auto">
+              <X className="w-4 h-4" />
+              Back to Journal
+            </Button>
+          </div>
+          
+          <TradeOutcomeEditor
+            trade={outcomeTrade}
+            onSave={handleSaveOutcome}
+            onCancel={handleCloseOutcome}
+            isSaving={updateTrade.isPending}
+          />
+        </div>
+      </ErrorBoundary>
+    );
+  }
+
   // If form is showing, render only the form inline
   if (showForm) {
     return (
       <ErrorBoundary>
-        <div className="container mx-auto p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">
+        <div className="container mx-auto p-4 sm:p-6 max-w-full overflow-x-hidden">
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl sm:text-3xl font-bold">
                 {editingTrade ? 'Edit Trade' : 'Log Trade'}
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-sm sm:text-base text-muted-foreground">
                 {editingTrade ? 'Update trade details' : 'Record a new trade'}
               </p>
             </div>
-            <Button variant="outline" onClick={handleCloseForm} className="gap-2">
+            <Button variant="outline" onClick={handleCloseForm} className="gap-2 shrink-0 w-full sm:w-auto">
               <X className="w-4 h-4" />
               Back to Journal
             </Button>
@@ -154,13 +204,13 @@ export default function Trades() {
 
   return (
     <ErrorBoundary>
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Trade Journal</h1>
-            <p className="text-muted-foreground">Track and analyze your trading performance</p>
+      <div className="container mx-auto p-4 sm:p-6 space-y-6 max-w-full overflow-x-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold">Trade Journal</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Track and analyze your trading performance</p>
           </div>
-          <Button onClick={handleOpenNewTradeForm} className="gap-2">
+          <Button onClick={handleOpenNewTradeForm} className="gap-2 w-full sm:w-auto">
             <Plus className="w-4 h-4" />
             Log Trade
           </Button>
@@ -169,10 +219,10 @@ export default function Trades() {
         {/* Setup Identifier */}
         <SetupIdentifier onSelectModel={handleSelectModelFromIdentifier} />
 
-        <div className="flex gap-4 flex-wrap">
+        <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
           <Select value={filterModel} onValueChange={setFilterModel}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Filter by model" />
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectValue placeholder="All Models" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Models</SelectItem>
@@ -185,8 +235,8 @@ export default function Trades() {
           </Select>
 
           <Select value={filterAsset} onValueChange={setFilterAsset}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Filter by asset" />
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectValue placeholder="All Assets" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Assets</SelectItem>
@@ -199,7 +249,7 @@ export default function Trades() {
           </Select>
 
           <Select value={sortBy} onValueChange={(v) => setSortBy(v as 'date' | 'rr')}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
@@ -213,8 +263,8 @@ export default function Trades() {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <p className="text-muted-foreground mb-4">No trades found</p>
-              <Button onClick={handleOpenNewTradeForm} className="gap-2">
-                <Plus className="w-4 h-4" />
+              <Button onClick={handleOpenNewTradeForm}>
+                <Plus className="w-4 h-4 mr-2" />
                 Log Your First Trade
               </Button>
             </CardContent>
@@ -224,71 +274,77 @@ export default function Trades() {
             {filteredTrades.map((trade) => {
               const model = models.find((m) => m.id === trade.model_id);
               const status = getTradeStatus(trade);
+              const tradePL = status.isOpen ? 0 : computeTradePLFromOutcomes(trade);
+              const tradeRR = status.isOpen ? 0 : computeTradeRRFromOutcomes(trade);
 
               return (
-                <Card key={trade.id}>
+                <Card key={trade.id} className="w-full">
                   <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <CardTitle className="flex items-center gap-2">
-                          {trade.direction === 'long' ? (
-                            <TrendingUp className="w-5 h-5 text-green-500" />
-                          ) : (
-                            <TrendingDown className="w-5 h-5 text-red-500" />
-                          )}
-                          {trade.asset}
-                          <Badge variant={status.variant}>
-                            {status.label}
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <CardTitle className="text-lg sm:text-xl break-words">{trade.asset}</CardTitle>
+                          <Badge variant={trade.direction === 'long' ? 'default' : 'destructive'}>
+                            {trade.direction.toUpperCase()}
                           </Badge>
-                        </CardTitle>
-                        <CardDescription>
-                          {model?.name} • {format(new Date(Number(trade.created_at) / 1000000), 'PPP')}
+                          <Badge variant={status.variant}>{status.label}</Badge>
+                        </div>
+                        <CardDescription className="break-words">
+                          {model?.name || 'Unknown Model'} •{' '}
+                          {format(new Date(Number(trade.created_at) / 1000000), 'PPP')}
                         </CardDescription>
                       </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="icon" onClick={() => setViewingTrade(trade)}>
-                          <Eye className="w-4 h-4" />
+                      <div className="flex gap-2 flex-wrap shrink-0">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleOpenOutcome(trade)}
+                          title="Trade Outcome"
+                        >
+                          <Target className="w-4 h-4" />
                         </Button>
-                        <Button variant="outline" size="icon" onClick={() => handleEdit(trade)}>
+                        {!status.isOpen && (
+                          <Button variant="outline" size="sm" onClick={() => setViewingTrade(trade)}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        )}
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(trade)}>
                           <Pencil className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleDelete(trade.id)}
-                          disabled={deleteTrade.isPending}
-                        >
+                        <Button variant="outline" size="sm" onClick={() => handleDelete(trade.id)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-4 gap-4 text-sm">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       <div>
-                        <p className="text-muted-foreground">Entry</p>
-                        <p className="font-medium">{trade.bracket_order.entry_price.toFixed(2)}</p>
+                        <p className="text-sm text-muted-foreground">Entry</p>
+                        <p className="font-semibold break-words">${trade.bracket_order.entry_price.toFixed(2)}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Size</p>
-                        <p className="font-medium">{trade.bracket_order.position_size}</p>
+                        <p className="text-sm text-muted-foreground">Position Size</p>
+                        <p className="font-semibold break-words">{trade.bracket_order.position_size.toFixed(2)}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">R:R</p>
-                        <p className="font-medium">
-                          {status.isOpen ? '-' : `${trade.bracket_order_outcome.rr.toFixed(2)}R`}
+                        <p className="text-sm text-muted-foreground">R:R</p>
+                        <p className="font-semibold break-words">
+                          {status.isOpen ? '-' : `${tradeRR.toFixed(2)}R`}
                         </p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">P/L</p>
-                        <p className={`font-medium ${
-                          status.isOpen 
-                            ? 'text-muted-foreground' 
-                            : trade.bracket_order_outcome.final_pl_usd > 0 
-                              ? 'text-green-500' 
+                        <p className="text-sm text-muted-foreground">P/L</p>
+                        <p
+                          className={`font-semibold break-words ${
+                            status.isOpen
+                              ? ''
+                              : tradePL > 0
+                              ? 'text-green-500'
                               : 'text-red-500'
-                        }`}>
-                          {status.isOpen ? '-' : `$${trade.bracket_order_outcome.final_pl_usd.toFixed(2)}`}
+                          }`}
+                        >
+                          {status.isOpen ? '-' : `$${tradePL.toFixed(2)}`}
                         </p>
                       </div>
                     </div>
@@ -300,10 +356,10 @@ export default function Trades() {
         )}
 
         {viewingTrade && (
-          <TradeDetailDialog 
-            trade={viewingTrade} 
-            open={!!viewingTrade} 
-            onClose={() => setViewingTrade(null)} 
+          <TradeDetailDialog
+            trade={viewingTrade}
+            open={!!viewingTrade}
+            onClose={() => setViewingTrade(null)}
           />
         )}
       </div>

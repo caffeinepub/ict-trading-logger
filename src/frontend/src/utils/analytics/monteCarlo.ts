@@ -1,4 +1,5 @@
 import type { Trade } from '../../backend';
+import { computeTradeRRFromOutcomes } from '../trade/tradeMetrics';
 
 export interface MonteCarloResult {
   paths: number[][];
@@ -10,59 +11,80 @@ export interface MonteCarloResult {
   maxPath: number[];
 }
 
-const DEFAULT_RUNS = 100;
-const DEFAULT_TRADES_PER_RUN = 200;
-
+/**
+ * Runs Monte Carlo simulation sampling from empirical R distribution
+ */
 export function runMonteCarloSimulation(
   trades: Trade[],
-  runs: number = DEFAULT_RUNS,
-  tradesPerRun: number = DEFAULT_TRADES_PER_RUN
-): MonteCarloResult | null {
+  numSimulations: number = 1000,
+  numTrades: number = 100,
+  startingCapital: number = 10000
+): MonteCarloResult {
   const completedTrades = trades.filter(t => t.is_completed);
   
-  if (completedTrades.length < 5) {
-    return null; // Insufficient data
+  if (completedTrades.length === 0) {
+    const emptyPath = Array(numTrades + 1).fill(startingCapital);
+    return { 
+      paths: [], 
+      minEquity: startingCapital, 
+      avgEquity: startingCapital, 
+      maxEquity: startingCapital,
+      minPath: emptyPath,
+      avgPath: emptyPath,
+      maxPath: emptyPath,
+    };
   }
 
-  const rValues = completedTrades.map(t => t.bracket_order_outcome.rr);
+  const rValues = completedTrades.map(t => computeTradeRRFromOutcomes(t));
   
   const paths: number[][] = [];
-
-  for (let run = 0; run < runs; run++) {
-    const path: number[] = [0];
-    let equity = 0;
-
-    for (let i = 0; i < tradesPerRun; i++) {
+  
+  for (let sim = 0; sim < numSimulations; sim++) {
+    const path: number[] = [startingCapital];
+    let equity = startingCapital;
+    
+    for (let i = 0; i < numTrades; i++) {
+      // Sample random R from empirical distribution
       const randomR = rValues[Math.floor(Math.random() * rValues.length)];
-      equity += randomR;
+      
+      // Assume 1% risk per trade
+      const riskAmount = equity * 0.01;
+      const plAmount = randomR * riskAmount;
+      
+      equity += plAmount;
       path.push(equity);
     }
-
+    
     paths.push(path);
   }
-
+  
+  // Compute statistics
   const finalEquities = paths.map(p => p[p.length - 1]);
   const minEquity = Math.min(...finalEquities);
-  const avgEquity = finalEquities.reduce((sum, e) => sum + e, 0) / runs;
   const maxEquity = Math.max(...finalEquities);
-
-  const minPath = paths.find(p => p[p.length - 1] === minEquity) || [];
-  const maxPath = paths.find(p => p[p.length - 1] === maxEquity) || [];
-
+  const avgEquity = finalEquities.reduce((sum, e) => sum + e, 0) / finalEquities.length;
+  
+  // Find representative paths
+  const minPathIndex = finalEquities.indexOf(minEquity);
+  const maxPathIndex = finalEquities.indexOf(maxEquity);
+  
   // Compute average path
   const avgPath: number[] = [];
-  for (let i = 0; i <= tradesPerRun; i++) {
+  for (let i = 0; i <= numTrades; i++) {
     const sum = paths.reduce((s, p) => s + p[i], 0);
-    avgPath.push(sum / runs);
+    avgPath.push(sum / paths.length);
   }
-
-  return {
-    paths,
-    minEquity,
-    avgEquity,
+  
+  return { 
+    paths, 
+    minEquity, 
+    avgEquity, 
     maxEquity,
-    minPath,
+    minPath: paths[minPathIndex],
     avgPath,
-    maxPath,
+    maxPath: paths[maxPathIndex],
   };
 }
+
+// Alias for backward compatibility
+export const runMonteCarlo = runMonteCarloSimulation;

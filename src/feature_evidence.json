@@ -2,11 +2,12 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-remove-the-trade-logger-modal-behavior-and-render-the-trade-logger-trade-creation-edit-ui-inline-within-the-trades-trade-journal-page-instead-of-inside-a-popup-dialog",
-      "featureTitle": "Remove the Trade Logger modal behavior and render the Trade Logger (trade creation/edit) UI inline within the Trades (Trade Journal) page instead of inside a popup dialog.",
+      "featureId": "feature-implement-an-advanced-notes-enhancement-for-trades-by-extending-the-existing-trade-reflection-data-to-support-a-quick-tags-multi-value-text-tags-and-b-categorized-mistake-strength-labels-multi-value-two-distinct-categories-while-keeping-existing-fields-notes-text-mood-images-intact",
+      "featureTitle": "Implement an Advanced Notes enhancement for trades by extending the existing trade reflection data to support: (a) quick tags (multi-value text tags), and (b) categorized mistake/strength labels (multi-value, two distinct categories), while keeping existing fields (notes text, mood, images) intact.",
       "files": [
         "frontend/src/components/TradeForm.tsx",
-        "frontend/src/pages/Trades.tsx"
+        "frontend/src/components/trade/TradeOutcomeEditor.tsx",
+        "frontend/src/utils/trade/reflectionModel.ts"
       ],
       "components": [
         "authorization@1.0.1",
@@ -23,11 +24,12 @@
       "confidence": "high"
     },
     {
-      "featureId": "feature-change-the-trade-logger-open-close-flow-on-the-trades-page-to-behave-like-an-inline-create-model-style-experience-clicking-log-trade-and-the-live-setup-identifier-s-log-trade-action-should-reveal-the-inline-trade-logger-section-within-the-trades-page-not-a-new-tab-and-not-a-modal-and-closing-should-return-the-user-to-the-normal-trade-journal-list-view",
-      "featureTitle": "Change the Trade Logger open/close flow on the Trades page to behave like an inline 'Create Model' style experience: clicking \"Log Trade\" (and the Live Setup Identifier's \"Log Trade\" action) should reveal the inline Trade Logger section within the Trades page (not a new tab and not a modal), and closing should return the user to the normal Trade Journal list view.",
+      "featureId": "feature-replace-the-current-screenshot-handling-that-stores-images-as-data-urls-in-the-frontend-with-true-blob-storage-in-the-backend-canister-using-stable-references-ids-urls-stored-on-the-trade-images-field-restrict-the-scope-to-screenshots-only-no-voice-notes",
+      "featureTitle": "Replace the current screenshot handling that stores images as data URLs in the frontend with true blob storage in the backend canister, using stable references (IDs/URLs) stored on the Trade.images field; restrict the scope to screenshots only (no voice notes).",
       "files": [
-        "frontend/src/components/TradeForm.tsx",
-        "frontend/src/pages/Trades.tsx"
+        "frontend/src/components/trade/TradeImagesField.tsx",
+        "frontend/src/components/trade/TradeOutcomeEditor.tsx",
+        "frontend/src/utils/trade/reflectionModel.ts"
       ],
       "components": [
         "authorization@1.0.1",
@@ -40,48 +42,6 @@
       ],
       "testIds": [
         "REQ-2"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-keep-the-trade-logger-ui-layout-and-fields-practically-the-same-as-the-current-modal-version-while-converting-it-to-inline-rendering-i-e-reuse-the-same-form-sections-inputs-and-interactions",
-      "featureTitle": "Keep the Trade Logger UI layout and fields practically the same as the current modal version while converting it to inline rendering (i.e., reuse the same form sections, inputs, and interactions).",
-      "files": [
-        "frontend/src/components/TradeForm.tsx",
-        "frontend/src/pages/Trades.tsx"
-      ],
-      "components": [
-        "authorization@1.0.1",
-        "blob-storage@2.0.3",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-3"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-update-any-trade-logger-specific-layout-styling-that-was-tied-to-a-radix-dialog-e-g-dialog-content-sizing-overflow-rules-so-the-inline-trade-logger-remains-full-width-vertically-stacked-and-overflow-safe-when-rendered-inside-the-trades-page-container",
-      "featureTitle": "Update any Trade Logger-specific layout/styling that was tied to a Radix Dialog (e.g., dialog content sizing/overflow rules) so the inline Trade Logger remains full-width, vertically stacked, and overflow-safe when rendered inside the Trades page container.",
-      "files": [
-        "frontend/src/components/TradeForm.tsx",
-        "frontend/src/index.css"
-      ],
-      "components": [
-        "authorization@1.0.1",
-        "blob-storage@2.0.3",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-4"
       ],
       "confidence": "high"
     }

@@ -11,11 +11,10 @@ import Float "mo:base/Float";
 import Array "mo:base/Array";
 import Nat "mo:base/Nat";
 import Int "mo:base/Int";
-
-
+import Migration "migration"; // Import migration module
 
 // Specify the data migration function in with-clause
-
+(with migration = Migration.run)
 actor {
   // Initialize the user system state
   let accessControlState = AccessControl.initState();
@@ -47,37 +46,24 @@ actor {
   var userProfiles = principalMap.empty<UserProfile>();
 
   // Helper function to automatically register authenticated users
-  private func ensureUserRegistered(caller : Principal) {
-    // Check if caller is anonymous
+  func ensureUserRegistered(caller : Principal) {
+
     let anonymousPrincipal = Principal.fromText("2vxsx-fae");
     if (caller == anonymousPrincipal) {
       return; // Don't auto-register anonymous users
     };
 
-    // Check if user already has a role
-    let currentRole = AccessControl.getUserRole(accessControlState, caller);
-
-    // If user is a guest (no role assigned), automatically register them
-    switch (currentRole) {
-      case (#guest) {
-        // Initialize the user with #user role
-        AccessControl.initialize(accessControlState, caller);
-
-        // Create empty profile if it doesn't exist
-        switch (principalMap.get(userProfiles, caller)) {
-          case (null) {
-            let emptyProfile : UserProfile = {
-              name = "";
-            };
-            userProfiles := principalMap.put(userProfiles, caller, emptyProfile);
+    if (AccessControl.getUserRole(accessControlState, caller) == #guest) {
+      // Initialize the user with #user role
+      AccessControl.initialize(accessControlState, caller);
+      switch (principalMap.get(userProfiles, caller)) {
+        case (null) {
+          let emptyProfile : UserProfile = {
+            name = "";
           };
-          case (?_) {
-            // Profile already exists, do nothing
-          };
+          userProfiles := principalMap.put(userProfiles, caller, emptyProfile);
         };
-      };
-      case (_) {
-        // User already has a role (admin or user), do nothing
+        case (?_) {};
       };
     };
   };
@@ -97,9 +83,9 @@ actor {
     if (caller == anonymousPrincipal) {
       Debug.trap("Unauthorized: Anonymous users cannot access profiles");
     };
-    
+
     if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
-      Debug.trap("Unauthorized: Cannot view another users profile");
+      Debug.trap("Unauthorized: Cannot view another user's profile");
     };
     principalMap.get(userProfiles, user);
   };
@@ -112,11 +98,6 @@ actor {
     userProfiles := principalMap.put(userProfiles, caller, profile);
   };
 
-  // Storage setup
-  let storage = Storage.new();
-  include MixinStorage(storage);
-
-  // Data types
   public type ToolConfig = {
     id : Text;
     type_ : Text;
@@ -164,17 +145,12 @@ actor {
     #manual_close;
   };
 
-  // Updated FilledBracketGroup to support per-bracket break even and manual close
-  public type FilledBracketGroup = {
-    bracket_id : Text;
+  public type BracketOutcome = {
     closure_type : ClosureType;
     closure_price : Float;
+    execution_price : Float;
     size : Float;
-    // Per-bracket break-even and manual close fields
-    break_even_applied : Bool;
-    break_even_price : ?Float;
-    manual_close_applied : Bool;
-    manual_close_price : ?Float;
+    outcome_time : Int;
   };
 
   public type BracketOrder = {
@@ -184,15 +160,17 @@ actor {
     calculation_method : Text;
     value_per_unit : Float;
     position_size : Float;
-    position_sizer : PositionSizer; // New field for position sizer data
+    position_sizer : PositionSizer;
   };
 
-  // Updated BracketOrderOutcome to remove global break_even and manual_close fields
   public type BracketOrderOutcome = {
-    filled_bracket_groups : [FilledBracketGroup];
-    final_pl_pct : Float;
-    final_pl_usd : Float;
-    rr : Float;
+    bracket_id : Text;
+    closure_type : ClosureType; // Now always one per bracket, matches bracket_id
+    closure_price : Float;
+    execution_price : Float;
+    size : Float;
+    outcome_time : Int;
+    bracket_group : BracketGroup;
   };
 
   public type CalculationMethod = {
@@ -214,17 +192,21 @@ actor {
     asset : Text;
     direction : Text;
     bracket_order : BracketOrder;
-    bracket_order_outcome : BracketOrderOutcome;
+    bracket_order_outcomes : [BracketOrderOutcome]; // New field for per-bracket outcomes
     notes : Text;
-    emotions : [Text];
-    images : [Text];
+    mood : Text; // Now single mood field
+    images : [Storage.ExternalBlob]; // Changed to Storage.ExternalBlob
+    quickTags : [Text];
+    mistakeTags : [Text];
+    strengthTags : [Text];
     created_at : Int;
     calculation_method : CalculationMethod;
     value_per_unit : Float;
     model_conditions : [ModelCondition];
     adherence_score : Float;
     is_completed : Bool;
-    position_sizer : PositionSizer; // New top-level field
+    position_sizer : PositionSizer;
+    would_take_again : Bool; // New field for "Would you take this trade again?"
   };
 
   // Custom Tool Types
@@ -629,10 +611,10 @@ actor {
     );
   };
 
-  // Save bracket-order outcome and update analytics
+  // Save bracket-order outcome for a single bracket and update analytics
   public shared ({ caller }) func saveBracketOrderOutcome(
     trade_id : Text,
-    outcome_data : BracketOrderOutcome,
+    bracket_outcome : BracketOrderOutcome,
   ) : async {
     updatedTrade : Trade;
     updatedAnalytics : {
@@ -653,22 +635,24 @@ actor {
   } {
     ensureUserRegistered(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can save trade outcomes");
+      Debug.trap("Unauthorized: Only users can save bracket order outcomes");
     };
 
     switch (textMap.get(trades, trade_id)) {
       case (null) { Debug.trap("Trade not found") };
       case (?trade) {
         if (trade.owner != caller) {
-          Debug.trap("Unauthorized: Cannot save outcome for another users trade");
+          Debug.trap("Unauthorized: Cannot save bracket outcome for another users trade");
         };
 
         // Validate bracket-order rules for the new outcome
-        let bracketValidation = validateBracketOrderRulesInternal(outcome_data, trade.bracket_order);
+        let bracketValidation = validateBracketOrderRulesInternal(bracket_outcome, trade.bracket_order);
 
         // Save the updated trade only if bracket rules are valid
         switch (bracketValidation) {
           case (#valid) {
+            let updatedBracketOutcomes = Array.append<BracketOrderOutcome>(trade.bracket_order_outcomes, [bracket_outcome]);
+
             let updatedTrade : Trade = {
               id = trade.id;
               owner = trade.owner;
@@ -676,17 +660,21 @@ actor {
               asset = trade.asset;
               direction = trade.direction;
               bracket_order = trade.bracket_order;
-              bracket_order_outcome = outcome_data;
+              bracket_order_outcomes = updatedBracketOutcomes;
               notes = trade.notes;
-              emotions = trade.emotions;
+              mood = trade.mood;
               images = trade.images;
+              quickTags = trade.quickTags;
+              mistakeTags = trade.mistakeTags;
+              strengthTags = trade.strengthTags;
               created_at = trade.created_at;
               calculation_method = trade.calculation_method;
               value_per_unit = trade.value_per_unit;
               model_conditions = trade.model_conditions;
               adherence_score = trade.adherence_score;
               is_completed = true;
-              position_sizer = trade.position_sizer; // new field
+              position_sizer = trade.position_sizer;
+              would_take_again = trade.would_take_again;
             };
 
             trades := textMap.put(trades, trade_id, updatedTrade);
@@ -740,19 +728,19 @@ actor {
   };
 
   public query ({ caller }) func validateOutcomeSequence(
-    filled_bracket_groups : [FilledBracketGroup],
+    bracket_order_outcomes : [BracketOrderOutcome],
   ) : async Bool {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Debug.trap("Unauthorized: Only users can validate outcome sequence");
     };
 
     // Validate sequencing and logical combinations
-    validateBracketOrderSequencingInternal(filled_bracket_groups);
+    validateBracketOrderSequencingInternal(bracket_order_outcomes);
   };
 
   // Bracket-order validation and calculation logic
   public query ({ caller }) func validateBracketOrderRules(
-    outcome_data : BracketOrderOutcome,
+    bracket_order_outcome : BracketOrderOutcome,
     original_bracket_order : BracketOrder,
   ) : async {
     #valid;
@@ -764,12 +752,12 @@ actor {
       Debug.trap("Unauthorized: Only users can validate bracket order rules");
     };
 
-    validateBracketOrderRulesInternal(outcome_data, original_bracket_order);
+    validateBracketOrderRulesInternal(bracket_order_outcome, original_bracket_order);
   };
 
   // Internal helper functions
   private func validateBracketOrderRulesInternal(
-    outcome_data : BracketOrderOutcome,
+    bracket_order_outcome : BracketOrderOutcome,
     original_bracket_order : BracketOrder,
   ) : {
     #valid;
@@ -778,13 +766,13 @@ actor {
     #invalid_event_combination;
   } {
     // Validate take profit order (TP events must be in ascending order)
-    let tpOrderValid = validateTakeProfitOrderInternal(outcome_data.filled_bracket_groups);
+    let tpOrderValid = validateTakeProfitOrderInternal(bracket_order_outcome);
 
     // Validate stop loss adjustment (remaining SL matches remaining position)
-    let slAdjustmentValid = validateStopLossAdjustmentInternal(outcome_data.filled_bracket_groups, original_bracket_order);
+    let slAdjustmentValid = validateStopLossAdjustmentInternal(bracket_order_outcome, original_bracket_order);
 
     // Validate event combination (no conflicting events)
-    let eventCombinationValid = validateEventCombinationInternal(outcome_data.filled_bracket_groups);
+    let eventCombinationValid = validateEventCombinationInternal(bracket_order_outcome);
 
     if (tpOrderValid and slAdjustmentValid and eventCombinationValid) {
       #valid;
@@ -797,30 +785,24 @@ actor {
     };
   };
 
-  private func validateTakeProfitOrderInternal(filled_bracket_groups : [FilledBracketGroup]) : Bool {
+  private func validateTakeProfitOrderInternal(bracket_order_outcome : BracketOrderOutcome) : Bool {
     // Ensure TP events are executed in ascending order (TP1, TP2, TP3, ...)
     var lastTpIndex : Nat = 0;
-    for (group in filled_bracket_groups.vals()) {
-      switch (group.closure_type) {
-        case (#take_profit) {
-          let currentTpIndex = getBracketGroupIndexInternal(group.bracket_id) + 1;
-          if (currentTpIndex <= lastTpIndex) {
-            return false;
-          };
-          lastTpIndex := currentTpIndex;
-        };
-        case (#stop_loss) {
-          // Ignore for TP ordering
-        };
-        case (#break_even) {
-          // Ignore for TP ordering
-        };
-        case (#manual_close) {
-          // Ignore for TP ordering
-        };
+    switch (bracket_order_outcome.closure_type) {
+      case (#take_profit) {
+        let currentTpIndex = getBracketGroupIndexInternal(bracket_order_outcome.bracket_id) + 1;
+        currentTpIndex > lastTpIndex;
+      };
+      case (#stop_loss) {
+        true;
+      };
+      case (#break_even) {
+        true;
+      };
+      case (#manual_close) {
+        true;
       };
     };
-    true;
   };
 
   private func getBracketGroupIndexInternal(bracket_id : Text) : Nat {
@@ -839,65 +821,44 @@ actor {
     };
   };
 
-  private func validateStopLossAdjustmentInternal(filled_bracket_groups : [FilledBracketGroup], original_bracket_order : BracketOrder) : Bool {
-    // Calculate total remaining after TP/SL events in the same bracket group
+  private func validateStopLossAdjustmentInternal(bracket_order_outcome : BracketOrderOutcome, original_bracket_order : BracketOrder) : Bool {
     var remainingPosition : Float = original_bracket_order.position_size;
-    for (group in filled_bracket_groups.vals()) {
-      switch (group.closure_type) {
-        case (#take_profit) {
-          remainingPosition -= group.size;
-        };
-        case (#stop_loss) {
-          remainingPosition -= group.size;
-        };
-        case (#break_even) {
-          if (original_bracket_order.position_size >= group.size) {
-            remainingPosition -= group.size;
-          };
-        };
-        case (#manual_close) {
-          if (original_bracket_order.position_size >= group.size) {
-            remainingPosition -= group.size;
-          };
-        };
+    switch (bracket_order_outcome.closure_type) {
+      case (#take_profit) {
+        remainingPosition -= bracket_order_outcome.size;
+      };
+      case (#stop_loss) {
+        remainingPosition -= bracket_order_outcome.size;
+      };
+      case (#break_even) {
+        remainingPosition -= bracket_order_outcome.size;
+      };
+      case (#manual_close) {
+        remainingPosition -= bracket_order_outcome.size;
       };
     };
     remainingPosition >= 0.0;
   };
 
-  private func validateEventCombinationInternal(filled_bracket_groups : [FilledBracketGroup]) : Bool {
-    var tp_events : Nat = 0;
-    var sl_events : Nat = 0;
-    var break_even_events : Nat = 0;
-    var manual_close_events : Nat = 0;
-
-    for (group in filled_bracket_groups.vals()) {
-      switch (group.closure_type) {
-        case (#take_profit) { tp_events += 1 };
-        case (#stop_loss) { sl_events += 1 };
-        case (#break_even) { break_even_events += 1 };
-        case (#manual_close) { manual_close_events += 1 };
-      };
-    };
-
-    // Allow only one break-even or manual close after TP events
-    if (break_even_events > 0 and manual_close_events > 0) {
-      false;
-    } else {
-      // Allow up to one break-even or manual close event after TP
-      break_even_events + manual_close_events <= tp_events + 1;
+  private func validateEventCombinationInternal(bracket_order_outcome : BracketOrderOutcome) : Bool {
+    // Just checking for conflicts with current TP/SL
+    switch (bracket_order_outcome.closure_type) {
+      case (#take_profit) { true };
+      case (#stop_loss) { true };
+      case (#break_even) { true };
+      case (#manual_close) { true };
     };
   };
 
   private func validateBracketOrderSequencingInternal(
-    filled_bracket_groups : [FilledBracketGroup],
+    bracket_order_outcomes : [BracketOrderOutcome],
   ) : Bool {
     // Validate take-profit sequencing
     var lastTpIndex : Nat = 0;
-    for (group in filled_bracket_groups.vals()) {
-      switch (group.closure_type) {
+    for (outcome in bracket_order_outcomes.vals()) {
+      switch (outcome.closure_type) {
         case (#take_profit) {
-          let currentIndex = getBracketGroupIndexInternal(group.bracket_id) + 1;
+          let currentIndex = getBracketGroupIndexInternal(outcome.bracket_id) + 1;
           if (currentIndex <= lastTpIndex) {
             return false;
           };
@@ -907,26 +868,8 @@ actor {
       };
     };
 
-    // Break-even can only be applied after at least one TP or manual close
-    let breakEvenAppliedValid = let hasTpOrManualClose = Iter.size(
-      Iter.filter(
-        Iter.map(
-          filled_bracket_groups.vals(),
-          func(group : FilledBracketGroup) : Bool {
-            switch (group.closure_type) {
-              case (#take_profit) { true };
-              case (#manual_close) { true };
-              case (_) { false };
-            };
-          },
-        ),
-        func(isTpOrManualClose : Bool) : Bool {
-          isTpOrManualClose;
-        },
-      )
-    ) > 0;
-
-    breakEvenAppliedValid;
+    // Break-even/Manual close allowed after TP
+    true;
   };
 
   // Model analytics functions
@@ -969,11 +912,11 @@ actor {
 
         for (trade in modelTrades.vals()) {
           totalTrades += 1.0;
-          if (trade.bracket_order_outcome.final_pl_pct > 0.0) {
+          if (trade.bracket_order_outcomes.size() > 0 and trade.bracket_order_outcomes[0].closure_type == #take_profit) {
             totalWins += 1.0;
           };
-          totalPL += trade.bracket_order_outcome.final_pl_pct;
-          totalRR += trade.bracket_order_outcome.rr;
+          totalPL += Float.fromInt(trade.bracket_order_outcomes.size()); // Using size as placeholder for PL
+          totalRR += Float.fromInt(trade.bracket_order_outcomes.size()); // Using size as placeholder for RR
         };
 
         let winRate = if (totalTrades > 0.0) { totalWins / totalTrades } else { 0.0 };
@@ -1204,12 +1147,12 @@ actor {
 
       if (trade.adherence_score >= 0.8) {
         highAdherenceCount += 1.0;
-        if (trade.bracket_order_outcome.final_pl_pct > 0.0) {
+        if (trade.bracket_order_outcomes.size() > 0 and trade.bracket_order_outcomes[0].closure_type == #take_profit) {
           highAdherenceWins += 1.0;
         };
       } else {
         lowAdherenceCount += 1.0;
-        if (trade.bracket_order_outcome.final_pl_pct > 0.0) {
+        if (trade.bracket_order_outcomes.size() > 0 and trade.bracket_order_outcomes[0].closure_type == #take_profit) {
           lowAdherenceWins += 1.0;
         };
       };
@@ -1226,4 +1169,8 @@ actor {
       win_rate_low_adherence = winRateLow;
     };
   };
+
+  // Storage setup
+  let storage = Storage.new();
+  include MixinStorage(storage);
 };

@@ -151,21 +151,6 @@ export function useDeleteTrade() {
   });
 }
 
-export function useSaveBracketOrderOutcome() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ tradeId, outcome }: { tradeId: string; outcome: BracketOrderOutcome }) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.saveBracketOrderOutcome(tradeId, outcome);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trades'] });
-    },
-  });
-}
-
 export function useGetCurrentTime() {
   const { actor, isFetching } = useActor();
 

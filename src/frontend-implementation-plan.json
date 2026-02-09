@@ -1,89 +1,215 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Inline Trade Logger on Trade Journal page (remove modal behavior)",
+  "title": "Calendar, Comparison, Dashboard customization, and Advanced Notes (screenshots-only)",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Remove modal/dialog-based Trade Logger behavior and render the TradeForm inline within the Trades (Trade Journal) page layout.",
+      "summary": "Extend trade reflection UI to support quick tags and categorized mistake/strength labels while keeping existing notes, mood, and screenshots intact.",
       "acceptanceCriteria": [
-        "Triggering the Trade Logger does not open any modal/dialog overlay.",
-        "The Trade Logger UI is rendered as part of the Trades page layout (inline in-page).",
-        "No backdrop/overlay blocks the rest of the app when the Trade Logger is open."
+        "A trade can persist and retrieve: notes (text), mood, images, quickTags[], mistakeTags[], strengthTags[] per user.",
+        "Existing trades created before this change continue to load without errors and default missing new fields to empty arrays.",
+        "The trade create/edit flow and trade outcome edit flow allow viewing/editing quick tags, mistake tags, and strength tags.",
+        "All trade data remains isolated per user (no cross-user access)."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/Trades.tsx",
+          "path": "frontend/src/utils/trade/reflectionModel.ts",
           "operation": "modify",
-          "description": "Replace the current conditional modal-style rendering of TradeForm (and the fixed overlay ErrorBoundary fallback) with an inline section in the page flow. Ensure no fixed backdrop/overlay is rendered when showForm is true."
+          "description": "Update TradeReflection to include quickTags, mistakeTags, and strengthTags; adjust extract/merge helpers to default missing arrays to [] for backward compatibility."
+        },
+        {
+          "path": "frontend/src/components/trade/TradeOutcomeEditor.tsx",
+          "operation": "modify",
+          "description": "Add inputs for quick tags, mistake tags, and strength tags in the Trade Reflection section; ensure they load from the Trade and are included in onSave payload alongside notes/mood/images."
         },
         {
           "path": "frontend/src/components/TradeForm.tsx",
           "operation": "modify",
-          "description": "Refactor TradeForm so it can render its existing UI without Radix Dialog (remove/disable Dialog/DialogContent usage for the Trades page inline experience), while preserving the same fields, sections, and interactions."
+          "description": "Extend the trade create/edit form to view/edit quick tags, mistake tags, and strength tags (keeping existing fields intact) and include them in the created/updated Trade object."
+        },
+        {
+          "path": "frontend/src/components/trade/TradeTagsField.tsx",
+          "operation": "create",
+          "description": "Create a reusable trade tags editor component for multi-value text tags, including categorized sections for Mistakes and Strengths, and a Quick Tags section; compose existing shadcn-ui inputs/badges/buttons (do not edit ui components)."
         }
       ]
     },
     {
       "id": "REQ-2",
-      "summary": "Make the Trades page 'Log Trade' and Live Setup Identifier 'log trade' flows reveal the same inline Trade Logger section and allow closing back to the normal list view.",
+      "summary": "Switch screenshots from frontend data URLs to backend blob references using ExternalBlob; support upload, display after reload, and removal (screenshots only).",
       "acceptanceCriteria": [
-        "Clicking the Trades page \"Log Trade\" button shows the inline Trade Logger section within the Trade Journal page.",
-        "Using the Live Setup Identifier 'log trade' flow opens the same inline Trade Logger section with the model and qualifying conditions preloaded (existing preloadedModelId/preloadedObservations behavior preserved).",
-        "The inline Trade Logger provides a clear way to close/cancel and return to the Trade Journal list without leaving the Trades page route."
+        "Uploading a screenshot results in the binary being stored via backend blob storage and the Trade.images array containing only stable references (not base64/data URLs).",
+        "Trade detail/outcome editors display uploaded screenshots correctly after a page reload (proves persistence).",
+        "Users can remove an uploaded screenshot from a trade, and it no longer appears on subsequent loads.",
+        "No UI for voice notes exists; no backend fields/APIs for voice notes are required."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/Trades.tsx",
+          "path": "frontend/src/components/trade/TradeImagesField.tsx",
           "operation": "modify",
-          "description": "Adjust the Trades page state flow so showForm toggles between list view and inline TradeForm view (create/edit). Keep existing preloadedModelId/preloadedObservations wiring from SetupIdentifier and ensure closing returns to the list view without route changes."
+          "description": "Refactor screenshots handling to use the blob-storage component’s ExternalBlob (frontend class) instead of data URLs; store Trade.images as ExternalBlob[] and render previews via getDirectURL(); support remove by updating the images array. Verify the component's usage instructions before implementing."
         },
         {
-          "path": "frontend/src/components/TradeForm.tsx",
+          "path": "frontend/src/components/trade/TradeOutcomeEditor.tsx",
           "operation": "modify",
-          "description": "Ensure TradeForm exposes a clear close/cancel control that calls onClose (used by the Trades page to return to the list view) and continues to honor preloadedModelId/preloadedObservations for the Setup Identifier flow."
+          "description": "Update local images state type and save payload to use ExternalBlob[]; ensure screenshots render correctly when loaded from persisted Trade.images references (reload-safe) and keep scope screenshots-only (no voice UI). Verify the component's usage instructions before implementing."
+        },
+        {
+          "path": "frontend/src/utils/trade/reflectionModel.ts",
+          "operation": "modify",
+          "description": "Adjust reflection helpers to treat Trade.images as ExternalBlob[] and to gracefully handle legacy values by defaulting missing images to []. Verify the component's usage instructions before implementing."
         }
       ]
     },
     {
       "id": "REQ-3",
-      "summary": "Preserve the existing Trade Logger (TradeForm) UI layout/fields and keep trade create/edit flows working while converting to inline rendering.",
+      "summary": "Add a new Calendar month-grid view that aggregates per-day trade stats and allows drilling into day trade lists and trade details.",
       "acceptanceCriteria": [
-        "All existing Trade Logger fields/sections present in the modal version remain available in the inline version.",
-        "Trade create and trade edit flows still work (create submits via existing mutation; edit loads persisted values and updates via existing mutation).",
-        "The inline Trade Logger remains responsive and does not introduce horizontal overflow/left-right scrolling (especially when the dynamic model-adherence section appears)."
+        "A new Calendar page/view is accessible from the main navigation.",
+        "The calendar renders a standard month grid with correct weekday alignment and supports switching months.",
+        "Each day cell displays: aggregated P/L for that day, adherence score summary (e.g., average or clearly labeled summary), model-used summary (e.g., most used or count by model), and indicators for presence of tags/notes/screenshots.",
+        "Clicking a day opens a list of trades for that date (modal, drawer, or dedicated page) with at least: time, model, P/L, adherence score, and preview indicators for notes/tags/screenshots.",
+        "From the day trade list, a user can open an existing trade detail view (reusing the existing TradeDetailDialog/flow).",
+        "Calendar data is derived only from the authenticated user’s trades."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/components/TradeForm.tsx",
-          "operation": "modify",
-          "description": "Preserve all current form sections, calculations, validation, and create/update mutation logic; only restructure the outer container/wrapper to support inline rendering without altering the form’s field behavior."
+          "path": "frontend/src/pages/Calendar.tsx",
+          "operation": "create",
+          "description": "Implement the Calendar month-grid page using authenticated user trades from existing queries, with month switching, day aggregation, and click-to-open day trade list that can open TradeDetailDialog."
         },
         {
-          "path": "frontend/src/pages/Trades.tsx",
+          "path": "frontend/src/components/calendar/DayTradesDialog.tsx",
+          "operation": "create",
+          "description": "Create a modal/dialog (composed from existing shadcn-ui components) that shows the list of trades for a selected date and allows opening TradeDetailDialog for a chosen trade."
+        },
+        {
+          "path": "frontend/src/utils/calendar/aggregation.ts",
+          "operation": "create",
+          "description": "Add calendar aggregation helpers: month grid generation (weekday alignment), per-day summaries (total P/L, adherence summary, model summary), and indicators for notes/tags/screenshots presence."
+        },
+        {
+          "path": "frontend/src/App.tsx",
           "operation": "modify",
-          "description": "When showForm is true, render the inline TradeForm within the Trades page container in a way that maintains responsiveness and avoids introducing new horizontal scroll in the page layout."
+          "description": "Wire Calendar page into app-level navigation state and render it as a new view."
+        },
+        {
+          "path": "frontend/src/components/Header.tsx",
+          "operation": "modify",
+          "description": "Add Calendar to the main and mobile navigation controls; ensure English labels and consistent styling with the new theme."
         }
       ]
     },
     {
       "id": "REQ-4",
-      "summary": "Update Trade Logger styling previously tied to Radix Dialog so the inline Trade Logger is full-width, vertically stacked, and overflow-safe inside the Trades page container.",
+      "summary": "Add a side-by-side Comparison view with independent left/right configurations and mirrored analytics outputs using existing analytics utilities.",
       "acceptanceCriteria": [
-        "Inline Trade Logger fits within the Trades page container across breakpoints without creating a horizontal scrollbar.",
-        "When the model adherence/model conditions section loads dynamically, subsequent sections reflow vertically (push content down) instead of forcing horizontal overflow.",
-        "Any CSS classes/selectors that depended on dialog DOM structure are replaced or adapted so the inline layout is stable."
+        "A new Comparison page/view is accessible from the app navigation.",
+        "Users can configure the left and right comparison panels independently, choosing comparison type and parameters (model/session/adherence/date range).",
+        "Date range comparison supports quick picks: week, month, and a custom start/end selector.",
+        "The comparison view renders mirrored KPI cards and at least one mirrored chart per side using existing analytics utility functions (e.g., metrics, equity curve, session metrics, adherence comparison, etc.).",
+        "Changing comparison settings updates results without full page reload and remains responsive on mobile."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/Comparison.tsx",
+          "operation": "create",
+          "description": "Implement a mirrored, responsive side-by-side comparison page that computes each side’s results by filtering trades and reusing existing analytics utilities (e.g., computeMetrics, computeEquityCurve, session/adherence helpers)."
+        },
+        {
+          "path": "frontend/src/components/comparison/ComparisonPanel.tsx",
+          "operation": "create",
+          "description": "Create a reusable configuration + results panel component (for left/right) supporting comparison types (model, session, adherence level, date range) and rendering KPIs + at least one chart using existing chart components/libraries."
+        },
+        {
+          "path": "frontend/src/components/comparison/DateRangePicker.tsx",
+          "operation": "create",
+          "description": "Create a date range control with quick picks (week, month) plus custom start/end selection; designed for mobile-friendly layout and English labels."
+        },
+        {
+          "path": "frontend/src/utils/analytics/comparisonFilters.ts",
+          "operation": "create",
+          "description": "Add helper functions to build filtered trade subsets for each comparison mode (model/session/adherence/date range) while delegating metric computations to existing analytics utilities."
+        },
+        {
+          "path": "frontend/src/App.tsx",
+          "operation": "modify",
+          "description": "Wire Comparison page into app-level navigation state and render it as a new view."
+        },
+        {
+          "path": "frontend/src/components/Header.tsx",
+          "operation": "modify",
+          "description": "Add Comparison to the main and mobile navigation controls; keep information hierarchy clear and consistent with the new theme."
+        }
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "summary": "Add a customizable Analytics dashboard layout with module hide/show + reorder and persistence per user.",
+      "acceptanceCriteria": [
+        "A user can open a ‘Customize dashboard’ control from the Analytics page and select dashboard modules to show/hide.",
+        "Users can reorder modules; the chosen order persists across reloads.",
+        "Dashboard layout preferences are saved per user in the backend and are not shared across users.",
+        "If no saved layout exists for a user, the Analytics page falls back to a sensible default layout (current overview-style modules).",
+        "Existing analytics filters (model/session/adherence threshold) continue to apply to the displayed modules."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/Analytics.tsx",
+          "operation": "modify",
+          "description": "Refactor Analytics to define dashboard modules (KPI blocks/charts) as configurable units, render them by saved layout (default if none), and add a “Customize dashboard” control without breaking existing filters or computations."
+        },
+        {
+          "path": "frontend/src/components/analytics/DashboardCustomizerDialog.tsx",
+          "operation": "create",
+          "description": "Create a customization dialog to hide/show modules and reorder them (drag-and-drop or equivalent, e.g., move up/down controls) using existing shadcn-ui primitives; persist changes via a layout store abstraction."
+        },
+        {
+          "path": "frontend/src/hooks/useDashboardLayout.ts",
+          "operation": "create",
+          "description": "Add a hook that loads/saves per-user dashboard layout (backend-persisted when backend capability is available) and provides a safe default layout fallback; keep UI responsive by applying changes client-side immediately."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add React Query hooks for loading/saving the user’s dashboard layout preference (frontend wiring only; assumes corresponding backend capability exists/will be added separately)."
+        }
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "summary": "Create and apply a cohesive non-blue/purple-dominant theme across Calendar, Comparison, and Dashboard customization UI with clear hierarchy and English copy.",
+      "acceptanceCriteria": [
+        "New pages/components share consistent styling (headers, cards, table/list items, controls) and match the existing Tailwind/Shadcn design language.",
+        "The theme avoids a blue/purple-dominant palette and remains readable in both light and dark modes (if theme switching exists).",
+        "All new user-facing labels, empty states, and helper text are in English."
       ],
       "file_operations": [
         {
           "path": "frontend/src/index.css",
           "operation": "modify",
-          "description": "Adapt the existing .trade-form-dialog rules into a dialog-agnostic wrapper style (e.g., shared class used by inline TradeForm) and remove reliance on Radix dialog-specific selectors/attributes so the same overflow-safety applies when rendered inline."
+          "description": "Adjust theme CSS variables (primary/ring/chart tokens) to a non-blue/purple-dominant palette (e.g., amber/emerald/neutral) while maintaining light/dark readability; ensure new UI uses these tokens consistently."
         },
         {
-          "path": "frontend/src/components/TradeForm.tsx",
+          "path": "frontend/src/components/Header.tsx",
           "operation": "modify",
-          "description": "Apply the updated wrapper class(es) for inline layout so sections stack vertically, respect container width, and remain overflow-safe when conditions/adherence sections render or re-render."
+          "description": "Update brand accents used in the header (currently blue/purple gradients) to align with the new palette, keeping contrast and readability in both themes."
+        },
+        {
+          "path": "frontend/src/pages/Calendar.tsx",
+          "operation": "modify",
+          "description": "Apply consistent card, header, and indicator styling using the updated theme tokens; ensure clear information hierarchy and English empty states."
+        },
+        {
+          "path": "frontend/src/pages/Comparison.tsx",
+          "operation": "modify",
+          "description": "Apply consistent mirrored layout styling, spacing, and typography using the updated theme tokens; ensure mobile responsiveness and English helper text."
+        },
+        {
+          "path": "frontend/src/components/analytics/DashboardCustomizerDialog.tsx",
+          "operation": "modify",
+          "description": "Apply consistent styling for module rows, toggles, and reorder controls using the updated theme tokens; ensure accessibility and English labels."
         }
       ]
     }

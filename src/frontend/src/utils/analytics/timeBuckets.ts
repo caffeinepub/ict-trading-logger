@@ -1,75 +1,81 @@
 import type { Trade } from '../../backend';
+import { computeTradePLFromOutcomes, isTradeWinner } from '../trade/tradeMetrics';
 
-export interface HourBucket {
-  hour: string;
-  trades: number;
+export interface HourMetrics {
+  hour: number;
+  totalTrades: number;
   winRate: number;
   totalPL: number;
 }
 
-export interface WeekdayBucket {
-  weekday: string;
-  trades: number;
+export interface DayMetrics {
+  day: string;
+  totalTrades: number;
   winRate: number;
   totalPL: number;
 }
 
-export function computeHourBuckets(trades: Trade[]): HourBucket[] {
+export function computeHourBuckets(trades: Trade[]): HourMetrics[] {
   const completedTrades = trades.filter(t => t.is_completed);
-  const hourGroups: Record<number, Trade[]> = {};
-
-  for (let i = 0; i < 24; i++) {
-    hourGroups[i] = [];
-  }
-
-  for (const trade of completedTrades) {
-    const date = new Date(Number(trade.created_at) / 1000000);
-    const hour = date.getUTCHours();
-    hourGroups[hour].push(trade);
-  }
-
-  return Object.entries(hourGroups).map(([hour, hourTrades]) => {
-    const totalTrades = hourTrades.length;
-    const wins = hourTrades.filter(t => t.bracket_order_outcome.final_pl_usd > 0).length;
-    const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
-    const totalPL = hourTrades.reduce((sum, t) => sum + t.bracket_order_outcome.final_pl_usd, 0);
-
-    return {
-      hour: `${hour}:00`,
-      trades: totalTrades,
+  const metrics: HourMetrics[] = [];
+  
+  for (let hour = 0; hour < 24; hour++) {
+    const hourTrades = completedTrades.filter(t => {
+      const date = new Date(Number(t.created_at) / 1000000);
+      return date.getUTCHours() === hour;
+    });
+    
+    if (hourTrades.length === 0) {
+      metrics.push({ hour, totalTrades: 0, winRate: 0, totalPL: 0 });
+      continue;
+    }
+    
+    const wins = hourTrades.filter(t => isTradeWinner(t)).length;
+    const winRate = (wins / hourTrades.length) * 100;
+    const totalPL = hourTrades.reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
+    
+    metrics.push({
+      hour,
+      totalTrades: hourTrades.length,
       winRate,
       totalPL,
-    };
-  }).filter(b => b.trades > 0);
+    });
+  }
+  
+  return metrics;
 }
 
-export function computeWeekdayBuckets(trades: Trade[]): WeekdayBucket[] {
+export function computeWeekdayBuckets(trades: Trade[]): DayMetrics[] {
   const completedTrades = trades.filter(t => t.is_completed);
-  const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const weekdayGroups: Record<string, Trade[]> = {};
-
-  weekdays.forEach(day => {
-    weekdayGroups[day] = [];
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const metrics: DayMetrics[] = [];
+  
+  days.forEach((day, dayIndex) => {
+    const dayTrades = completedTrades.filter(t => {
+      const date = new Date(Number(t.created_at) / 1000000);
+      return date.getUTCDay() === dayIndex;
+    });
+    
+    if (dayTrades.length === 0) {
+      metrics.push({ day, totalTrades: 0, winRate: 0, totalPL: 0 });
+      return;
+    }
+    
+    const wins = dayTrades.filter(t => isTradeWinner(t)).length;
+    const winRate = (wins / dayTrades.length) * 100;
+    const totalPL = dayTrades.reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
+    
+    metrics.push({
+      day,
+      totalTrades: dayTrades.length,
+      winRate,
+      totalPL,
+    });
   });
-
-  for (const trade of completedTrades) {
-    const date = new Date(Number(trade.created_at) / 1000000);
-    const weekday = weekdays[date.getDay()];
-    weekdayGroups[weekday].push(trade);
-  }
-
-  return weekdays.map(weekday => {
-    const dayTrades = weekdayGroups[weekday];
-    const totalTrades = dayTrades.length;
-    const wins = dayTrades.filter(t => t.bracket_order_outcome.final_pl_usd > 0).length;
-    const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
-    const totalPL = dayTrades.reduce((sum, t) => sum + t.bracket_order_outcome.final_pl_usd, 0);
-
-    return {
-      weekday,
-      trades: totalTrades,
-      winRate,
-      totalPL,
-    };
-  }).filter(b => b.trades > 0);
+  
+  return metrics;
 }
+
+// Aliases for backward compatibility
+export const computeHourMetrics = computeHourBuckets;
+export const computeDayMetrics = computeWeekdayBuckets;

@@ -1,48 +1,66 @@
 import type { Trade } from '../../backend';
-import { inferSession, type Session } from './tradeScope';
+import { computeTradePLFromOutcomes, computeTradeRRFromOutcomes, isTradeWinner } from '../trade/tradeMetrics';
+
+export type TradingSession = 'Asia' | 'London' | 'NY';
 
 export interface SessionMetrics {
-  session: Session;
-  trades: number;
+  session: TradingSession;
+  totalTrades: number;
+  trades: number; // Alias for totalTrades
   winRate: number;
   totalPL: number;
-  avgPL: number;
   avgR: number;
 }
 
+export function getTradeSession(trade: Trade): TradingSession {
+  const date = new Date(Number(trade.created_at) / 1000000);
+  const hour = date.getUTCHours();
+  
+  // Asia: 00:00-08:00 UTC
+  if (hour >= 0 && hour < 8) return 'Asia';
+  // London: 08:00-16:00 UTC
+  if (hour >= 8 && hour < 16) return 'London';
+  // NY: 16:00-24:00 UTC
+  return 'NY';
+}
+
 export function computeSessionMetrics(trades: Trade[]): SessionMetrics[] {
-  const sessions: Session[] = ['Asia', 'London', 'NY'];
   const completedTrades = trades.filter(t => t.is_completed);
-
-  return sessions.map(session => {
-    const sessionTrades = completedTrades.filter(t => inferSession(t.created_at) === session);
-    const totalTrades = sessionTrades.length;
-
-    if (totalTrades === 0) {
-      return {
-        session,
+  
+  const sessions: TradingSession[] = ['Asia', 'London', 'NY'];
+  const metrics: SessionMetrics[] = [];
+  
+  sessions.forEach(session => {
+    const sessionTrades = completedTrades.filter(t => getTradeSession(t) === session);
+    
+    if (sessionTrades.length === 0) {
+      metrics.push({ 
+        session, 
+        totalTrades: 0, 
         trades: 0,
-        winRate: 0,
-        totalPL: 0,
-        avgPL: 0,
-        avgR: 0,
-      };
+        winRate: 0, 
+        totalPL: 0, 
+        avgR: 0 
+      });
+      return;
     }
-
-    const wins = sessionTrades.filter(t => t.bracket_order_outcome.final_pl_usd > 0).length;
-    const winRate = (wins / totalTrades) * 100;
-    const totalPL = sessionTrades.reduce((sum, t) => sum + t.bracket_order_outcome.final_pl_usd, 0);
-    const avgPL = totalPL / totalTrades;
-    const totalR = sessionTrades.reduce((sum, t) => sum + t.bracket_order_outcome.rr, 0);
-    const avgR = totalR / totalTrades;
-
-    return {
+    
+    const wins = sessionTrades.filter(t => isTradeWinner(t)).length;
+    const winRate = (wins / sessionTrades.length) * 100;
+    const totalPL = sessionTrades.reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
+    const avgR = sessionTrades.length > 0 
+      ? sessionTrades.reduce((sum, t) => sum + computeTradeRRFromOutcomes(t), 0) / sessionTrades.length 
+      : 0;
+    
+    metrics.push({
       session,
-      trades: totalTrades,
+      totalTrades: sessionTrades.length,
+      trades: sessionTrades.length,
       winRate,
       totalPL,
-      avgPL,
       avgR,
-    };
+    });
   });
+  
+  return metrics;
 }

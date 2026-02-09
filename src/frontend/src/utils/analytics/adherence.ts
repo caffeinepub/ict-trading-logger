@@ -1,42 +1,68 @@
 import type { Trade } from '../../backend';
+import { computeTradePLFromOutcomes, isTradeWinner } from '../trade/tradeMetrics';
 
-export interface AdherenceComparison {
+export interface AdherenceMetrics {
+  winRate: number;
+  totalPL: number;
+}
+
+export interface AdherenceComparisonResult {
+  highAdherence: AdherenceMetrics;
+  lowAdherence: AdherenceMetrics;
+  delta: { winRate: number; totalPL: number };
+  filteredTrades: number;
   filteredWinRate: number;
   filteredPL: number;
-  filteredTrades: number;
+  allTrades: number;
   allWinRate: number;
   allPL: number;
-  allTrades: number;
   winRateDelta: number;
   plDelta: number;
 }
 
+export function filterByAdherence(trades: Trade[], minAdherence: number): Trade[] {
+  return trades.filter(t => t.is_completed && t.adherence_score >= minAdherence);
+}
+
+export function computeAdherenceMetrics(trades: Trade[]): AdherenceMetrics {
+  const completedTrades = trades.filter(t => t.is_completed);
+  
+  if (completedTrades.length === 0) {
+    return { winRate: 0, totalPL: 0 };
+  }
+
+  const wins = completedTrades.filter(t => isTradeWinner(t)).length;
+  const winRate = (wins / completedTrades.length) * 100;
+  const pl = completedTrades.reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
+
+  return { winRate, totalPL: pl };
+}
+
 export function computeAdherenceComparison(
-  allTrades: Trade[],
+  trades: Trade[],
   threshold: number
-): AdherenceComparison {
-  const completed = allTrades.filter(t => t.is_completed);
-  const filtered = completed.filter(t => t.adherence_score >= threshold);
+): AdherenceComparisonResult {
+  const completedTrades = trades.filter(t => t.is_completed);
+  const high = filterByAdherence(trades, threshold);
+  const low = completedTrades.filter(t => t.adherence_score < threshold);
 
-  const computeStats = (trades: Trade[]) => {
-    if (trades.length === 0) return { winRate: 0, pl: 0, trades: 0 };
-    const wins = trades.filter(t => t.bracket_order_outcome.final_pl_usd > 0).length;
-    const winRate = (wins / trades.length) * 100;
-    const pl = trades.reduce((sum, t) => sum + t.bracket_order_outcome.final_pl_usd, 0);
-    return { winRate, pl, trades: trades.length };
-  };
-
-  const filteredStats = computeStats(filtered);
-  const allStats = computeStats(completed);
+  const highMetrics = computeAdherenceMetrics(high);
+  const lowMetrics = computeAdherenceMetrics(completedTrades);
 
   return {
-    filteredWinRate: filteredStats.winRate,
-    filteredPL: filteredStats.pl,
-    filteredTrades: filteredStats.trades,
-    allWinRate: allStats.winRate,
-    allPL: allStats.pl,
-    allTrades: allStats.trades,
-    winRateDelta: filteredStats.winRate - allStats.winRate,
-    plDelta: filteredStats.pl - allStats.pl,
+    highAdherence: highMetrics,
+    lowAdherence: lowMetrics,
+    delta: {
+      winRate: highMetrics.winRate - lowMetrics.winRate,
+      totalPL: highMetrics.totalPL - lowMetrics.totalPL,
+    },
+    filteredTrades: high.length,
+    filteredWinRate: highMetrics.winRate,
+    filteredPL: highMetrics.totalPL,
+    allTrades: completedTrades.length,
+    allWinRate: lowMetrics.winRate,
+    allPL: lowMetrics.totalPL,
+    winRateDelta: highMetrics.winRate - lowMetrics.winRate,
+    plDelta: highMetrics.totalPL - lowMetrics.totalPL,
   };
 }

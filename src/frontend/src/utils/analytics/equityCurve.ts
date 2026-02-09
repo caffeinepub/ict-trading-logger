@@ -1,4 +1,5 @@
 import type { Trade } from '../../backend';
+import { computeTradePLFromOutcomes } from '../trade/tradeMetrics';
 
 export interface EquityPoint {
   index: number;
@@ -13,7 +14,7 @@ export function computeEquityCurve(trades: Trade[]): EquityPoint[] {
 
   let runningEquity = 0;
   return completedTrades.map((trade, index) => {
-    runningEquity += trade.bracket_order_outcome.final_pl_usd;
+    runningEquity += computeTradePLFromOutcomes(trade);
     const date = new Date(Number(trade.created_at) / 1000000);
     return {
       index: index + 1,

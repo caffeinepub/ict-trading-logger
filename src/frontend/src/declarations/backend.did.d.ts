@@ -27,10 +27,13 @@ export interface BracketOrder {
   'value_per_unit' : number,
 }
 export interface BracketOrderOutcome {
-  'rr' : number,
-  'final_pl_pct' : number,
-  'final_pl_usd' : number,
-  'filled_bracket_groups' : Array<FilledBracketGroup>,
+  'outcome_time' : bigint,
+  'closure_price' : number,
+  'size' : number,
+  'bracket_group' : BracketGroup,
+  'bracket_id' : string,
+  'execution_price' : number,
+  'closure_type' : ClosureType,
 }
 export type CalculationMethod = { 'tick' : null } |
   { 'point' : null };
@@ -53,16 +56,7 @@ export interface CustomToolDefinition {
   'properties' : Array<CustomProperty>,
   'created_at' : bigint,
 }
-export interface FilledBracketGroup {
-  'manual_close_price' : [] | [number],
-  'break_even_applied' : boolean,
-  'closure_price' : number,
-  'size' : number,
-  'break_even_price' : [] | [number],
-  'bracket_id' : string,
-  'manual_close_applied' : boolean,
-  'closure_type' : ClosureType,
-}
+export type ExternalBlob = Uint8Array;
 export interface Model {
   'id' : string,
   'owner' : Principal,
@@ -108,18 +102,22 @@ export interface Trade {
   'asset' : string,
   'owner' : Principal,
   'model_conditions' : Array<ModelCondition>,
+  'mood' : string,
+  'bracket_order_outcomes' : Array<BracketOrderOutcome>,
+  'mistakeTags' : Array<string>,
   'created_at' : bigint,
-  'bracket_order_outcome' : BracketOrderOutcome,
   'calculation_method' : CalculationMethod,
   'is_completed' : boolean,
+  'would_take_again' : boolean,
+  'strengthTags' : Array<string>,
   'position_sizer' : PositionSizer,
   'notes' : string,
   'adherence_score' : number,
-  'emotions' : Array<string>,
+  'quickTags' : Array<string>,
   'model_id' : string,
   'bracket_order' : BracketOrder,
   'value_per_unit' : number,
-  'images' : Array<string>,
+  'images' : Array<ExternalBlob>,
 }
 export interface UserProfile { 'name' : string }
 export type UserRole = { 'admin' : null } |
@@ -240,7 +238,10 @@ export interface _SERVICE {
       { 'invalid_event_combination' : null } |
       { 'invalid_stop_loss_adjustment' : null }
   >,
-  'validateOutcomeSequence' : ActorMethod<[Array<FilledBracketGroup>], boolean>,
+  'validateOutcomeSequence' : ActorMethod<
+    [Array<BracketOrderOutcome>],
+    boolean
+  >,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

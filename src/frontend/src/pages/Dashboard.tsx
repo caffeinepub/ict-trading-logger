@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, TrendingUp, TrendingDown, DollarSign, Target, Award } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { Trade } from '../backend';
+import { computeTradePLFromOutcomes, computeTradeRRFromOutcomes, isTradeWinner, isTradeLoser } from '../utils/trade/tradeMetrics';
 
 interface DashboardProps {
   onNavigate: (page: 'models' | 'trades') => void;
@@ -15,25 +16,28 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
   const isLoading = modelsLoading || tradesLoading;
 
+  // Filter completed trades
+  const completedTrades = trades.filter(t => t.is_completed);
+
   // Calculate statistics
-  const totalTrades = trades.length;
-  const winningTrades = trades.filter((t) => t.bracket_order_outcome.final_pl_usd > 0).length;
-  const losingTrades = trades.filter((t) => t.bracket_order_outcome.final_pl_usd < 0).length;
+  const totalTrades = completedTrades.length;
+  const winningTrades = completedTrades.filter(t => isTradeWinner(t)).length;
+  const losingTrades = completedTrades.filter(t => isTradeLoser(t)).length;
   const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
 
-  const totalPL = trades.reduce((sum, t) => sum + t.bracket_order_outcome.final_pl_usd, 0);
-  const avgRR = trades.length > 0 ? trades.reduce((sum, t) => sum + t.bracket_order_outcome.rr, 0) / trades.length : 0;
+  const totalPL = completedTrades.reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
+  const avgRR = completedTrades.length > 0 ? completedTrades.reduce((sum, t) => sum + computeTradeRRFromOutcomes(t), 0) / completedTrades.length : 0;
 
-  const grossProfit = trades.filter((t) => t.bracket_order_outcome.final_pl_usd > 0).reduce((sum, t) => sum + t.bracket_order_outcome.final_pl_usd, 0);
-  const grossLoss = Math.abs(trades.filter((t) => t.bracket_order_outcome.final_pl_usd < 0).reduce((sum, t) => sum + t.bracket_order_outcome.final_pl_usd, 0));
+  const grossProfit = completedTrades.filter(t => isTradeWinner(t)).reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
+  const grossLoss = Math.abs(completedTrades.filter(t => isTradeLoser(t)).reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0));
   const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
 
   // Calculate equity curve
-  const equityCurve = trades
+  const equityCurve = completedTrades
     .sort((a, b) => Number(a.created_at - b.created_at))
     .reduce((acc: { date: string; equity: number }[], trade, index) => {
       const prevEquity = index > 0 ? acc[index - 1].equity : 10000;
-      const newEquity = prevEquity + trade.bracket_order_outcome.final_pl_usd;
+      const newEquity = prevEquity + computeTradePLFromOutcomes(trade);
       acc.push({
         date: new Date(Number(trade.created_at) / 1000000).toLocaleDateString(),
         equity: newEquity,
@@ -42,15 +46,15 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     }, []);
 
   // Recent trades (last 5)
-  const recentTrades = [...trades]
+  const recentTrades = [...completedTrades]
     .sort((a, b) => Number(b.created_at - a.created_at))
     .slice(0, 5);
 
   // Top performing models
   const modelPerformance = models.map((model) => {
-    const modelTrades = trades.filter((t) => t.model_id === model.id);
-    const modelPL = modelTrades.reduce((sum, t) => sum + t.bracket_order_outcome.final_pl_usd, 0);
-    const modelWins = modelTrades.filter((t) => t.bracket_order_outcome.final_pl_usd > 0).length;
+    const modelTrades = completedTrades.filter((t) => t.model_id === model.id);
+    const modelPL = modelTrades.reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
+    const modelWins = modelTrades.filter(t => isTradeWinner(t)).length;
     const modelWinRate = modelTrades.length > 0 ? (modelWins / modelTrades.length) * 100 : 0;
     return {
       model,
@@ -193,35 +197,40 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               </div>
             ) : (
               <div className="space-y-3">
-                {recentTrades.map((trade) => (
-                  <div key={trade.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          trade.direction === 'long' ? 'bg-green-500/10' : 'bg-red-500/10'
-                        }`}
-                      >
-                        {trade.direction === 'long' ? (
-                          <TrendingUp className="w-5 h-5 text-green-500" />
-                        ) : (
-                          <TrendingDown className="w-5 h-5 text-red-500" />
-                        )}
+                {recentTrades.map((trade) => {
+                  const tradePL = computeTradePLFromOutcomes(trade);
+                  const tradeRR = computeTradeRRFromOutcomes(trade);
+                  
+                  return (
+                    <div key={trade.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                            trade.direction === 'long' ? 'bg-green-500/10' : 'bg-red-500/10'
+                          }`}
+                        >
+                          {trade.direction === 'long' ? (
+                            <TrendingUp className="w-5 h-5 text-green-500" />
+                          ) : (
+                            <TrendingDown className="w-5 h-5 text-red-500" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium">{trade.asset}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(Number(trade.created_at) / 1000000).toLocaleDateString()}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{trade.asset}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(Number(trade.created_at) / 1000000).toLocaleDateString()}
+                      <div className="text-right">
+                        <p className={`font-bold ${tradePL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          ${tradePL.toFixed(2)}
                         </p>
+                        <p className="text-xs text-muted-foreground">{tradeRR.toFixed(2)}R</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className={`font-bold ${trade.bracket_order_outcome.final_pl_usd >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        ${trade.bracket_order_outcome.final_pl_usd.toFixed(2)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{trade.bracket_order_outcome.rr.toFixed(2)}R</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>

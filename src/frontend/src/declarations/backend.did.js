@@ -70,27 +70,27 @@ export const Model = IDL.Record({
   'narrative' : IDL.Vec(ToolConfig),
   'execution' : IDL.Vec(ToolConfig),
 });
+export const BracketGroup = IDL.Record({
+  'size' : IDL.Float64,
+  'take_profit_price' : IDL.Float64,
+  'sl_modified_by_user' : IDL.Bool,
+  'bracket_id' : IDL.Text,
+  'stop_loss_price' : IDL.Float64,
+});
 export const ClosureType = IDL.Variant({
   'take_profit' : IDL.Null,
   'manual_close' : IDL.Null,
   'stop_loss' : IDL.Null,
   'break_even' : IDL.Null,
 });
-export const FilledBracketGroup = IDL.Record({
-  'manual_close_price' : IDL.Opt(IDL.Float64),
-  'break_even_applied' : IDL.Bool,
+export const BracketOrderOutcome = IDL.Record({
+  'outcome_time' : IDL.Int,
   'closure_price' : IDL.Float64,
   'size' : IDL.Float64,
-  'break_even_price' : IDL.Opt(IDL.Float64),
+  'bracket_group' : BracketGroup,
   'bracket_id' : IDL.Text,
-  'manual_close_applied' : IDL.Bool,
+  'execution_price' : IDL.Float64,
   'closure_type' : ClosureType,
-});
-export const BracketOrderOutcome = IDL.Record({
-  'rr' : IDL.Float64,
-  'final_pl_pct' : IDL.Float64,
-  'final_pl_usd' : IDL.Float64,
-  'filled_bracket_groups' : IDL.Vec(FilledBracketGroup),
 });
 export const CalculationMethod = IDL.Variant({
   'tick' : IDL.Null,
@@ -106,13 +106,6 @@ export const PositionSizer = IDL.Record({
   'risk_percentage' : IDL.Float64,
   'entry_price' : IDL.Float64,
 });
-export const BracketGroup = IDL.Record({
-  'size' : IDL.Float64,
-  'take_profit_price' : IDL.Float64,
-  'sl_modified_by_user' : IDL.Bool,
-  'bracket_id' : IDL.Text,
-  'stop_loss_price' : IDL.Float64,
-});
 export const BracketOrder = IDL.Record({
   'bracket_groups' : IDL.Vec(BracketGroup),
   'primary_stop_loss' : IDL.Float64,
@@ -122,24 +115,29 @@ export const BracketOrder = IDL.Record({
   'entry_price' : IDL.Float64,
   'value_per_unit' : IDL.Float64,
 });
+export const ExternalBlob = IDL.Vec(IDL.Nat8);
 export const Trade = IDL.Record({
   'id' : IDL.Text,
   'direction' : IDL.Text,
   'asset' : IDL.Text,
   'owner' : IDL.Principal,
   'model_conditions' : IDL.Vec(ModelCondition),
+  'mood' : IDL.Text,
+  'bracket_order_outcomes' : IDL.Vec(BracketOrderOutcome),
+  'mistakeTags' : IDL.Vec(IDL.Text),
   'created_at' : IDL.Int,
-  'bracket_order_outcome' : BracketOrderOutcome,
   'calculation_method' : CalculationMethod,
   'is_completed' : IDL.Bool,
+  'would_take_again' : IDL.Bool,
+  'strengthTags' : IDL.Vec(IDL.Text),
   'position_sizer' : PositionSizer,
   'notes' : IDL.Text,
   'adherence_score' : IDL.Float64,
-  'emotions' : IDL.Vec(IDL.Text),
+  'quickTags' : IDL.Vec(IDL.Text),
   'model_id' : IDL.Text,
   'bracket_order' : BracketOrder,
   'value_per_unit' : IDL.Float64,
-  'images' : IDL.Vec(IDL.Text),
+  'images' : IDL.Vec(ExternalBlob),
 });
 export const UserProfile = IDL.Record({ 'name' : IDL.Text });
 
@@ -314,7 +312,7 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'validateOutcomeSequence' : IDL.Func(
-      [IDL.Vec(FilledBracketGroup)],
+      [IDL.Vec(BracketOrderOutcome)],
       [IDL.Bool],
       ['query'],
     ),
@@ -385,27 +383,27 @@ export const idlFactory = ({ IDL }) => {
     'narrative' : IDL.Vec(ToolConfig),
     'execution' : IDL.Vec(ToolConfig),
   });
+  const BracketGroup = IDL.Record({
+    'size' : IDL.Float64,
+    'take_profit_price' : IDL.Float64,
+    'sl_modified_by_user' : IDL.Bool,
+    'bracket_id' : IDL.Text,
+    'stop_loss_price' : IDL.Float64,
+  });
   const ClosureType = IDL.Variant({
     'take_profit' : IDL.Null,
     'manual_close' : IDL.Null,
     'stop_loss' : IDL.Null,
     'break_even' : IDL.Null,
   });
-  const FilledBracketGroup = IDL.Record({
-    'manual_close_price' : IDL.Opt(IDL.Float64),
-    'break_even_applied' : IDL.Bool,
+  const BracketOrderOutcome = IDL.Record({
+    'outcome_time' : IDL.Int,
     'closure_price' : IDL.Float64,
     'size' : IDL.Float64,
-    'break_even_price' : IDL.Opt(IDL.Float64),
+    'bracket_group' : BracketGroup,
     'bracket_id' : IDL.Text,
-    'manual_close_applied' : IDL.Bool,
+    'execution_price' : IDL.Float64,
     'closure_type' : ClosureType,
-  });
-  const BracketOrderOutcome = IDL.Record({
-    'rr' : IDL.Float64,
-    'final_pl_pct' : IDL.Float64,
-    'final_pl_usd' : IDL.Float64,
-    'filled_bracket_groups' : IDL.Vec(FilledBracketGroup),
   });
   const CalculationMethod = IDL.Variant({
     'tick' : IDL.Null,
@@ -421,13 +419,6 @@ export const idlFactory = ({ IDL }) => {
     'risk_percentage' : IDL.Float64,
     'entry_price' : IDL.Float64,
   });
-  const BracketGroup = IDL.Record({
-    'size' : IDL.Float64,
-    'take_profit_price' : IDL.Float64,
-    'sl_modified_by_user' : IDL.Bool,
-    'bracket_id' : IDL.Text,
-    'stop_loss_price' : IDL.Float64,
-  });
   const BracketOrder = IDL.Record({
     'bracket_groups' : IDL.Vec(BracketGroup),
     'primary_stop_loss' : IDL.Float64,
@@ -437,24 +428,29 @@ export const idlFactory = ({ IDL }) => {
     'entry_price' : IDL.Float64,
     'value_per_unit' : IDL.Float64,
   });
+  const ExternalBlob = IDL.Vec(IDL.Nat8);
   const Trade = IDL.Record({
     'id' : IDL.Text,
     'direction' : IDL.Text,
     'asset' : IDL.Text,
     'owner' : IDL.Principal,
     'model_conditions' : IDL.Vec(ModelCondition),
+    'mood' : IDL.Text,
+    'bracket_order_outcomes' : IDL.Vec(BracketOrderOutcome),
+    'mistakeTags' : IDL.Vec(IDL.Text),
     'created_at' : IDL.Int,
-    'bracket_order_outcome' : BracketOrderOutcome,
     'calculation_method' : CalculationMethod,
     'is_completed' : IDL.Bool,
+    'would_take_again' : IDL.Bool,
+    'strengthTags' : IDL.Vec(IDL.Text),
     'position_sizer' : PositionSizer,
     'notes' : IDL.Text,
     'adherence_score' : IDL.Float64,
-    'emotions' : IDL.Vec(IDL.Text),
+    'quickTags' : IDL.Vec(IDL.Text),
     'model_id' : IDL.Text,
     'bracket_order' : BracketOrder,
     'value_per_unit' : IDL.Float64,
-    'images' : IDL.Vec(IDL.Text),
+    'images' : IDL.Vec(ExternalBlob),
   });
   const UserProfile = IDL.Record({ 'name' : IDL.Text });
   
@@ -629,7 +625,7 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'validateOutcomeSequence' : IDL.Func(
-        [IDL.Vec(FilledBracketGroup)],
+        [IDL.Vec(BracketOrderOutcome)],
         [IDL.Bool],
         ['query'],
       ),

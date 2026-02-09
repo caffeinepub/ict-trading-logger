@@ -1,90 +1,83 @@
 import type { Trade } from '../../backend';
+import { computeTradePLFromOutcomes, computeTradeRRFromOutcomes, isTradeWinner } from '../trade/tradeMetrics';
 
 export type VolatilityBucket = 'Low' | 'Medium' | 'High';
 
 export interface VolatilityMetrics {
   bucket: VolatilityBucket;
-  trades: number;
+  totalTrades: number;
+  trades: number; // Alias for totalTrades
   winRate: number;
   totalPL: number;
   avgR: number;
-  rValues: number[];
+  rDistribution: number[];
 }
 
 /**
- * Volatility proxy: uses the ratio of stop-loss distance to entry price
- * as a proxy for volatility. Higher ratio = higher volatility.
+ * Computes a volatility proxy from stop-loss distance
  */
-function computeVolatilityProxy(trade: Trade): number {
-  const entryPrice = trade.bracket_order.entry_price;
-  const stopLoss = trade.bracket_order.primary_stop_loss;
-  const distance = Math.abs(entryPrice - stopLoss);
-  return distance / entryPrice;
+export function computeVolatilityProxy(trade: Trade): number {
+  const entry = trade.bracket_order.entry_price;
+  const primarySL = trade.bracket_order.primary_stop_loss;
+  const stopDistance = Math.abs(entry - primarySL);
+  
+  // Normalize by entry price to get percentage distance
+  return (stopDistance / entry) * 100;
 }
 
-function assignVolatilityBucket(proxy: number, thresholds: { low: number; high: number }): VolatilityBucket {
-  if (proxy < thresholds.low) return 'Low';
-  if (proxy < thresholds.high) return 'Medium';
+/**
+ * Buckets trade into volatility category
+ */
+export function getVolatilityBucket(trade: Trade): VolatilityBucket {
+  const volProxy = computeVolatilityProxy(trade);
+  
+  // Thresholds (can be adjusted)
+  if (volProxy < 1.0) return 'Low';
+  if (volProxy < 2.0) return 'Medium';
   return 'High';
 }
 
+/**
+ * Computes metrics per volatility bucket
+ */
 export function computeVolatilityMetrics(trades: Trade[]): VolatilityMetrics[] {
   const completedTrades = trades.filter(t => t.is_completed);
   
-  if (completedTrades.length === 0) {
-    return [];
-  }
-
-  // Compute volatility proxies
-  const proxies = completedTrades.map(t => computeVolatilityProxy(t));
-  proxies.sort((a, b) => a - b);
-
-  // Define thresholds at 33rd and 66th percentiles
-  const lowThreshold = proxies[Math.floor(proxies.length * 0.33)];
-  const highThreshold = proxies[Math.floor(proxies.length * 0.66)];
-
-  const buckets: Record<VolatilityBucket, Trade[]> = {
-    Low: [],
-    Medium: [],
-    High: [],
-  };
-
-  for (const trade of completedTrades) {
-    const proxy = computeVolatilityProxy(trade);
-    const bucket = assignVolatilityBucket(proxy, { low: lowThreshold, high: highThreshold });
-    buckets[bucket].push(trade);
-  }
-
-  const bucketNames: VolatilityBucket[] = ['Low', 'Medium', 'High'];
-
-  return bucketNames.map(bucket => {
-    const bucketTrades = buckets[bucket];
-    const totalTrades = bucketTrades.length;
-
-    if (totalTrades === 0) {
-      return {
+  const buckets: VolatilityBucket[] = ['Low', 'Medium', 'High'];
+  const metrics: VolatilityMetrics[] = [];
+  
+  buckets.forEach(bucket => {
+    const bucketTrades = completedTrades.filter(t => getVolatilityBucket(t) === bucket);
+    
+    if (bucketTrades.length === 0) {
+      metrics.push({
         bucket,
+        totalTrades: 0,
         trades: 0,
         winRate: 0,
         totalPL: 0,
         avgR: 0,
-        rValues: [],
-      };
+        rDistribution: [],
+      });
+      return;
     }
-
-    const wins = bucketTrades.filter(t => t.bracket_order_outcome.final_pl_usd > 0).length;
-    const winRate = (wins / totalTrades) * 100;
-    const totalPL = bucketTrades.reduce((sum, t) => sum + t.bracket_order_outcome.final_pl_usd, 0);
-    const rValues = bucketTrades.map(t => t.bracket_order_outcome.rr);
-    const avgR = rValues.reduce((sum, r) => sum + r, 0) / totalTrades;
-
-    return {
+    
+    const wins = bucketTrades.filter(t => isTradeWinner(t)).length;
+    const winRate = (wins / bucketTrades.length) * 100;
+    const totalPL = bucketTrades.reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
+    const avgR = bucketTrades.reduce((sum, t) => sum + computeTradeRRFromOutcomes(t), 0) / bucketTrades.length;
+    const rValues = bucketTrades.map(t => computeTradeRRFromOutcomes(t));
+    
+    metrics.push({
       bucket,
-      trades: totalTrades,
+      totalTrades: bucketTrades.length,
+      trades: bucketTrades.length,
       winRate,
       totalPL,
       avgR,
-      rValues,
-    };
+      rDistribution: rValues,
+    });
   });
+  
+  return metrics;
 }

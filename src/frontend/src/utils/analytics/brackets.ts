@@ -1,73 +1,77 @@
 import type { Trade } from '../../backend';
+import { ClosureType } from '../../backend';
 
 export interface BracketMetrics {
   bracketIndex: number;
   tpHitRate: number;
   slHitRate: number;
-  avgRealizedR: number;
-  totalHits: number;
+  avgR: number;
+  avgRealizedR: number; // Alias for avgR
+  totalTrades: number;
+  totalHits: number; // Alias for totalTrades
 }
 
 export function computeBracketMetrics(trades: Trade[]): BracketMetrics[] {
-  const completedTrades = trades.filter(t => t.is_completed);
+  const completedTrades = trades.filter(t => t.is_completed && t.bracket_order_outcomes.length > 0);
   
-  // Find max bracket count
-  let maxBrackets = 0;
-  for (const trade of completedTrades) {
-    const count = trade.bracket_order.bracket_groups.length;
-    if (count > maxBrackets) maxBrackets = count;
-  }
+  if (completedTrades.length === 0) return [];
 
+  // Determine max bracket count
+  const maxBrackets = Math.max(...completedTrades.map(t => t.bracket_order.bracket_groups.length));
+  
   const metrics: BracketMetrics[] = [];
 
   for (let i = 0; i < maxBrackets; i++) {
     let tpCount = 0;
     let slCount = 0;
     let totalR = 0;
-    let totalHits = 0;
+    let count = 0;
 
-    for (const trade of completedTrades) {
+    completedTrades.forEach(trade => {
+      if (i >= trade.bracket_order.bracket_groups.length) return;
+      
       const bracketGroup = trade.bracket_order.bracket_groups[i];
-      if (!bracketGroup) continue;
-
-      const filled = trade.bracket_order_outcome.filled_bracket_groups.find(
-        f => f.bracket_id === bracketGroup.bracket_id
+      const filled = trade.bracket_order_outcomes.find(
+        outcome => outcome.bracket_id === bracketGroup.bracket_id
       );
 
       if (filled) {
-        totalHits++;
+        count++;
         
-        if (filled.closure_type === 'take_profit') {
+        if (filled.closure_type === ClosureType.take_profit) {
           tpCount++;
-        } else if (filled.closure_type === 'stop_loss') {
+        } else if (filled.closure_type === ClosureType.stop_loss) {
           slCount++;
         }
 
-        // Compute realized R for this bracket
-        const entryPrice = trade.bracket_order.entry_price;
-        const stopLoss = trade.bracket_order.primary_stop_loss;
-        const risk = Math.abs(entryPrice - stopLoss);
+        // Calculate R for this bracket
+        const entry = trade.bracket_order.entry_price;
+        const primarySL = trade.bracket_order.primary_stop_loss;
+        const isLong = trade.direction === 'long';
         
-        if (risk > 0) {
-          const pnl = (filled.closure_price - entryPrice) * (trade.direction === 'long' ? 1 : -1);
-          const r = pnl / risk;
-          totalR += r;
-        }
+        const priceDiff = isLong 
+          ? (filled.closure_price - entry) 
+          : (entry - filled.closure_price);
+        const stopDistance = Math.abs(entry - primarySL);
+        const r = stopDistance > 0 ? priceDiff / stopDistance : 0;
+        
+        totalR += r;
       }
-    }
-
-    const tpHitRate = totalHits > 0 ? (tpCount / totalHits) * 100 : 0;
-    const slHitRate = totalHits > 0 ? (slCount / totalHits) * 100 : 0;
-    const avgRealizedR = totalHits > 0 ? totalR / totalHits : 0;
-
-    metrics.push({
-      bracketIndex: i + 1,
-      tpHitRate,
-      slHitRate,
-      avgRealizedR,
-      totalHits,
     });
+
+    if (count > 0) {
+      const avgR = totalR / count;
+      metrics.push({
+        bracketIndex: i,
+        tpHitRate: (tpCount / count) * 100,
+        slHitRate: (slCount / count) * 100,
+        avgR,
+        avgRealizedR: avgR,
+        totalTrades: count,
+        totalHits: count,
+      });
+    }
   }
 
-  return metrics.filter(m => m.totalHits > 0);
+  return metrics;
 }

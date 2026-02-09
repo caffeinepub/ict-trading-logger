@@ -1,109 +1,101 @@
 import type { Trade, Model, ToolConfig } from '../../backend';
+import { computeTradePLFromOutcomes, computeTradeRRFromOutcomes, isTradeWinner } from '../trade/tradeMetrics';
 
-export type BiasType = 'Bullish' | 'Bearish' | 'Unknown';
+export type HTFBias = 'Bullish' | 'Bearish' | 'Unknown';
 
-export interface BiasMetrics {
-  bias: BiasType;
-  trades: number;
+export interface HTFBiasMetrics {
+  bias: HTFBias;
+  totalTrades: number;
+  trades: number; // Alias for totalTrades
   winRate: number;
   totalPL: number;
   avgR: number;
-  rValues: number[];
+  rDistribution: number[];
+  rValues: number[]; // Alias for rDistribution
 }
 
-function extractBiasFromTool(tool: ToolConfig): BiasType {
-  try {
-    const props = JSON.parse(tool.properties);
-    
-    // Check for direction/bias fields
-    if (props.direction) {
-      const dir = props.direction.toLowerCase();
-      if (dir.includes('bull') || dir === 'long') return 'Bullish';
-      if (dir.includes('bear') || dir === 'short') return 'Bearish';
+/**
+ * Derives HTF bias from model tool configuration
+ */
+export function deriveHTFBias(model: Model): HTFBias {
+  // Check narrative zone for HTF bias indicators
+  const narrativeTools = model.narrative;
+  
+  for (const tool of narrativeTools) {
+    try {
+      const props = JSON.parse(tool.properties);
+      
+      // Look for direction property
+      if (props.direction) {
+        const dir = props.direction.toLowerCase();
+        if (dir.includes('bull') || dir === 'long') return 'Bullish';
+        if (dir.includes('bear') || dir === 'short') return 'Bearish';
+      }
+      
+      // Look for bias in tool type
+      const toolType = tool.type.toLowerCase();
+      if (toolType.includes('bull')) return 'Bullish';
+      if (toolType.includes('bear')) return 'Bearish';
+      
+    } catch {
+      // Skip invalid JSON
     }
-    
-    if (props.bias) {
-      const bias = props.bias.toLowerCase();
-      if (bias.includes('bull')) return 'Bullish';
-      if (bias.includes('bear')) return 'Bearish';
-    }
-
-    if (props.htf_bias) {
-      const htf = props.htf_bias.toLowerCase();
-      if (htf.includes('bull')) return 'Bullish';
-      if (htf.includes('bear')) return 'Bearish';
-    }
-  } catch {
-    // Invalid JSON, return Unknown
   }
   
   return 'Unknown';
 }
 
-export function deriveBiasFromModel(model: Model): BiasType {
-  // Check narrative tools first
-  for (const tool of model.narrative) {
-    const bias = extractBiasFromTool(tool);
-    if (bias !== 'Unknown') return bias;
-  }
-  
-  // Check framework tools
-  for (const tool of model.framework) {
-    const bias = extractBiasFromTool(tool);
-    if (bias !== 'Unknown') return bias;
-  }
-  
-  return 'Unknown';
-}
-
+/**
+ * Groups trades by HTF bias and computes metrics
+ */
 export function computeBiasMetrics(
   trades: Trade[],
   models: Model[]
-): BiasMetrics[] {
+): HTFBiasMetrics[] {
   const completedTrades = trades.filter(t => t.is_completed);
   
-  const biasGroups: Record<BiasType, Trade[]> = {
-    Bullish: [],
-    Bearish: [],
-    Unknown: [],
-  };
-
-  for (const trade of completedTrades) {
-    const model = models.find(m => m.id === trade.model_id);
-    const bias = model ? deriveBiasFromModel(model) : 'Unknown';
-    biasGroups[bias].push(trade);
-  }
-
-  const biases: BiasType[] = ['Bullish', 'Bearish', 'Unknown'];
+  // Create model lookup
+  const modelMap = new Map(models.map(m => [m.id, m]));
   
-  return biases.map(bias => {
-    const biasTrades = biasGroups[bias];
-    const totalTrades = biasTrades.length;
-
-    if (totalTrades === 0) {
-      return {
-        bias,
-        trades: 0,
-        winRate: 0,
-        totalPL: 0,
-        avgR: 0,
-        rValues: [],
-      };
-    }
-
-    const wins = biasTrades.filter(t => t.bracket_order_outcome.final_pl_usd > 0).length;
-    const winRate = (wins / totalTrades) * 100;
-    const totalPL = biasTrades.reduce((sum, t) => sum + t.bracket_order_outcome.final_pl_usd, 0);
-    const rValues = biasTrades.map(t => t.bracket_order_outcome.rr);
-    const avgR = rValues.reduce((sum, r) => sum + r, 0) / totalTrades;
-
-    return {
+  // Group trades by bias
+  const biasGroups = new Map<HTFBias, Trade[]>();
+  
+  completedTrades.forEach(trade => {
+    const model = modelMap.get(trade.model_id);
+    if (!model) return;
+    
+    const bias = deriveHTFBias(model);
+    const group = biasGroups.get(bias) || [];
+    group.push(trade);
+    biasGroups.set(bias, group);
+  });
+  
+  // Compute metrics for each bias
+  const metrics: HTFBiasMetrics[] = [];
+  
+  biasGroups.forEach((biasTrades, bias) => {
+    if (biasTrades.length === 0) return;
+    
+    const wins = biasTrades.filter(t => isTradeWinner(t)).length;
+    const winRate = (wins / biasTrades.length) * 100;
+    const totalPL = biasTrades.reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
+    const avgR = biasTrades.reduce((sum, t) => sum + computeTradeRRFromOutcomes(t), 0) / biasTrades.length;
+    const rValues = biasTrades.map(t => computeTradeRRFromOutcomes(t));
+    
+    metrics.push({
       bias,
-      trades: totalTrades,
+      totalTrades: biasTrades.length,
+      trades: biasTrades.length,
       winRate,
       totalPL,
       avgR,
+      rDistribution: rValues,
       rValues,
-    };
+    });
   });
+  
+  return metrics;
 }
+
+// Alias for backward compatibility
+export const computeHTFBiasMetrics = computeBiasMetrics;

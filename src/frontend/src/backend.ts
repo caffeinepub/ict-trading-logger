@@ -111,18 +111,22 @@ export interface Trade {
     asset: string;
     owner: Principal;
     model_conditions: Array<ModelCondition>;
+    mood: string;
+    bracket_order_outcomes: Array<BracketOrderOutcome>;
+    mistakeTags: Array<string>;
     created_at: bigint;
-    bracket_order_outcome: BracketOrderOutcome;
     calculation_method: CalculationMethod;
     is_completed: boolean;
+    would_take_again: boolean;
+    strengthTags: Array<string>;
     position_sizer: PositionSizer;
     notes: string;
     adherence_score: number;
-    emotions: Array<string>;
+    quickTags: Array<string>;
     model_id: string;
     bracket_order: BracketOrder;
     value_per_unit: number;
-    images: Array<string>;
+    images: Array<ExternalBlob>;
 }
 export interface CustomToolDefinition {
     id: string;
@@ -131,13 +135,6 @@ export interface CustomToolDefinition {
     name: string;
     properties: Array<CustomProperty>;
     created_at: bigint;
-}
-export interface BracketGroup {
-    size: number;
-    take_profit_price: number;
-    sl_modified_by_user: boolean;
-    bracket_id: string;
-    stop_loss_price: number;
 }
 export interface _CaffeineStorageCreateCertificateResult {
     method: string;
@@ -149,11 +146,21 @@ export interface ModelCondition {
     zone: string;
     description: string;
 }
+export interface BracketGroup {
+    size: number;
+    take_profit_price: number;
+    sl_modified_by_user: boolean;
+    bracket_id: string;
+    stop_loss_price: number;
+}
 export interface BracketOrderOutcome {
-    rr: number;
-    final_pl_pct: number;
-    final_pl_usd: number;
-    filled_bracket_groups: Array<FilledBracketGroup>;
+    outcome_time: bigint;
+    closure_price: number;
+    size: number;
+    bracket_group: BracketGroup;
+    bracket_id: string;
+    execution_price: number;
+    closure_type: ClosureType;
 }
 export interface ToolConfig {
     id: string;
@@ -173,16 +180,6 @@ export interface PositionSizer {
     primary_stop_loss: number;
     risk_percentage: number;
     entry_price: number;
-}
-export interface FilledBracketGroup {
-    manual_close_price?: number;
-    break_even_applied: boolean;
-    closure_price: number;
-    size: number;
-    break_even_price?: number;
-    bracket_id: string;
-    manual_close_applied: boolean;
-    closure_type: ClosureType;
 }
 export interface Model {
     id: string;
@@ -273,7 +270,7 @@ export interface backendInterface {
     initializeAccessControl(): Promise<void>;
     isCallerAdmin(): Promise<boolean>;
     mapTradeConditionsToModel(trade_conditions: Array<ModelCondition>, model_conditions: Array<ModelCondition>): Promise<Array<ModelCondition>>;
-    saveBracketOrderOutcome(trade_id: string, outcome_data: BracketOrderOutcome): Promise<{
+    saveBracketOrderOutcome(trade_id: string, bracket_outcome: BracketOrderOutcome): Promise<{
         updatedTrade: Trade;
         updatedAnalytics: {
             totalTrades: number;
@@ -301,10 +298,10 @@ export interface backendInterface {
     }>;
     updateTrade(trade: Trade): Promise<void>;
     validateBracketGroups(bracket_groups: Array<BracketGroup>, direction: string): Promise<boolean>;
-    validateBracketOrderRules(outcome_data: BracketOrderOutcome, original_bracket_order: BracketOrder): Promise<Variant_valid_invalid_take_profit_order_invalid_event_combination_invalid_stop_loss_adjustment>;
-    validateOutcomeSequence(filled_bracket_groups: Array<FilledBracketGroup>): Promise<boolean>;
+    validateBracketOrderRules(bracket_order_outcome: BracketOrderOutcome, original_bracket_order: BracketOrder): Promise<Variant_valid_invalid_take_profit_order_invalid_event_combination_invalid_stop_loss_adjustment>;
+    validateOutcomeSequence(bracket_order_outcomes: Array<BracketOrderOutcome>): Promise<boolean>;
 }
-import type { BracketOrder as _BracketOrder, BracketOrderOutcome as _BracketOrderOutcome, CalculationMethod as _CalculationMethod, ClosureType as _ClosureType, CustomProperty as _CustomProperty, CustomToolDefinition as _CustomToolDefinition, FilledBracketGroup as _FilledBracketGroup, Model as _Model, ModelCondition as _ModelCondition, PositionSizer as _PositionSizer, PropertyType as _PropertyType, Trade as _Trade, UserProfile as _UserProfile, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
+import type { BracketGroup as _BracketGroup, BracketOrder as _BracketOrder, BracketOrderOutcome as _BracketOrderOutcome, CalculationMethod as _CalculationMethod, ClosureType as _ClosureType, CustomProperty as _CustomProperty, CustomToolDefinition as _CustomToolDefinition, ExternalBlob as _ExternalBlob, Model as _Model, ModelCondition as _ModelCondition, PositionSizer as _PositionSizer, PropertyType as _PropertyType, Trade as _Trade, UserProfile as _UserProfile, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async _caffeineStorageBlobIsLive(arg0: Uint8Array): Promise<boolean> {
@@ -450,14 +447,14 @@ export class Backend implements backendInterface {
     async createTrade(arg0: Trade): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.createTrade(to_candid_Trade_n17(this._uploadFile, this._downloadFile, arg0));
+                const result = await this.actor.createTrade(await to_candid_Trade_n17(this._uploadFile, this._downloadFile, arg0));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.createTrade(to_candid_Trade_n17(this._uploadFile, this._downloadFile, arg0));
+            const result = await this.actor.createTrade(await to_candid_Trade_n17(this._uploadFile, this._downloadFile, arg0));
             return result;
         }
     }
@@ -582,28 +579,28 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getCallerUserProfile();
-                return from_candid_opt_n49(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n48(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCallerUserProfile();
-            return from_candid_opt_n49(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n48(this._uploadFile, this._downloadFile, result);
         }
     }
     async getCallerUserRole(): Promise<UserRole> {
         if (this.processError) {
             try {
                 const result = await this.actor.getCallerUserRole();
-                return from_candid_UserRole_n50(this._uploadFile, this._downloadFile, result);
+                return from_candid_UserRole_n49(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCallerUserRole();
-            return from_candid_UserRole_n50(this._uploadFile, this._downloadFile, result);
+            return from_candid_UserRole_n49(this._uploadFile, this._downloadFile, result);
         }
     }
     async getCurrentTime(): Promise<bigint> {
@@ -624,14 +621,14 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getCustomTool(arg0);
-                return from_candid_opt_n52(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n51(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCustomTool(arg0);
-            return from_candid_opt_n52(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n51(this._uploadFile, this._downloadFile, result);
         }
     }
     async getCustomToolCount(): Promise<bigint> {
@@ -652,14 +649,14 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getModel(arg0);
-                return from_candid_opt_n53(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n52(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getModel(arg0);
-            return from_candid_opt_n53(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n52(this._uploadFile, this._downloadFile, result);
         }
     }
     async getModelConditions(arg0: string): Promise<Array<ModelCondition>> {
@@ -694,14 +691,14 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getTrade(arg0);
-                return from_candid_opt_n54(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n53(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getTrade(arg0);
-            return from_candid_opt_n54(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n53(this._uploadFile, this._downloadFile, result);
         }
     }
     async getTradesByAdherenceRange(arg0: number, arg1: number): Promise<Array<Trade>> {
@@ -764,14 +761,14 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getUserProfile(arg0);
-                return from_candid_opt_n49(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n48(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getUserProfile(arg0);
-            return from_candid_opt_n49(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n48(this._uploadFile, this._downloadFile, result);
         }
     }
     async initializeAccessControl(): Promise<void> {
@@ -831,15 +828,15 @@ export class Backend implements backendInterface {
     }> {
         if (this.processError) {
             try {
-                const result = await this.actor.saveBracketOrderOutcome(arg0, to_candid_BracketOrderOutcome_n19(this._uploadFile, this._downloadFile, arg1));
-                return from_candid_record_n55(this._uploadFile, this._downloadFile, result);
+                const result = await this.actor.saveBracketOrderOutcome(arg0, to_candid_BracketOrderOutcome_n20(this._uploadFile, this._downloadFile, arg1));
+                return from_candid_record_n54(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.saveBracketOrderOutcome(arg0, to_candid_BracketOrderOutcome_n19(this._uploadFile, this._downloadFile, arg1));
-            return from_candid_record_n55(this._uploadFile, this._downloadFile, result);
+            const result = await this.actor.saveBracketOrderOutcome(arg0, to_candid_BracketOrderOutcome_n20(this._uploadFile, this._downloadFile, arg1));
+            return from_candid_record_n54(this._uploadFile, this._downloadFile, result);
         }
     }
     async saveCallerUserProfile(arg0: UserProfile): Promise<void> {
@@ -897,27 +894,27 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.updateModelAnalytics(arg0);
-                return from_candid_record_n56(this._uploadFile, this._downloadFile, result);
+                return from_candid_record_n55(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.updateModelAnalytics(arg0);
-            return from_candid_record_n56(this._uploadFile, this._downloadFile, result);
+            return from_candid_record_n55(this._uploadFile, this._downloadFile, result);
         }
     }
     async updateTrade(arg0: Trade): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateTrade(to_candid_Trade_n17(this._uploadFile, this._downloadFile, arg0));
+                const result = await this.actor.updateTrade(await to_candid_Trade_n17(this._uploadFile, this._downloadFile, arg0));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateTrade(to_candid_Trade_n17(this._uploadFile, this._downloadFile, arg0));
+            const result = await this.actor.updateTrade(await to_candid_Trade_n17(this._uploadFile, this._downloadFile, arg0));
             return result;
         }
     }
@@ -938,40 +935,40 @@ export class Backend implements backendInterface {
     async validateBracketOrderRules(arg0: BracketOrderOutcome, arg1: BracketOrder): Promise<Variant_valid_invalid_take_profit_order_invalid_event_combination_invalid_stop_loss_adjustment> {
         if (this.processError) {
             try {
-                const result = await this.actor.validateBracketOrderRules(to_candid_BracketOrderOutcome_n19(this._uploadFile, this._downloadFile, arg0), arg1);
-                return from_candid_variant_n57(this._uploadFile, this._downloadFile, result);
+                const result = await this.actor.validateBracketOrderRules(to_candid_BracketOrderOutcome_n20(this._uploadFile, this._downloadFile, arg0), arg1);
+                return from_candid_variant_n56(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.validateBracketOrderRules(to_candid_BracketOrderOutcome_n19(this._uploadFile, this._downloadFile, arg0), arg1);
-            return from_candid_variant_n57(this._uploadFile, this._downloadFile, result);
+            const result = await this.actor.validateBracketOrderRules(to_candid_BracketOrderOutcome_n20(this._uploadFile, this._downloadFile, arg0), arg1);
+            return from_candid_variant_n56(this._uploadFile, this._downloadFile, result);
         }
     }
-    async validateOutcomeSequence(arg0: Array<FilledBracketGroup>): Promise<boolean> {
+    async validateOutcomeSequence(arg0: Array<BracketOrderOutcome>): Promise<boolean> {
         if (this.processError) {
             try {
-                const result = await this.actor.validateOutcomeSequence(to_candid_vec_n21(this._uploadFile, this._downloadFile, arg0));
+                const result = await this.actor.validateOutcomeSequence(to_candid_vec_n19(this._uploadFile, this._downloadFile, arg0));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.validateOutcomeSequence(to_candid_vec_n21(this._uploadFile, this._downloadFile, arg0));
+            const result = await this.actor.validateOutcomeSequence(to_candid_vec_n19(this._uploadFile, this._downloadFile, arg0));
             return result;
         }
     }
 }
-function from_candid_BracketOrderOutcome_n39(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _BracketOrderOutcome): BracketOrderOutcome {
-    return from_candid_record_n40(_uploadFile, _downloadFile, value);
+function from_candid_BracketOrderOutcome_n40(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _BracketOrderOutcome): BracketOrderOutcome {
+    return from_candid_record_n41(_uploadFile, _downloadFile, value);
 }
-function from_candid_CalculationMethod_n47(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _CalculationMethod): CalculationMethod {
-    return from_candid_variant_n48(_uploadFile, _downloadFile, value);
+function from_candid_CalculationMethod_n44(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _CalculationMethod): CalculationMethod {
+    return from_candid_variant_n45(_uploadFile, _downloadFile, value);
 }
-function from_candid_ClosureType_n45(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ClosureType): ClosureType {
-    return from_candid_variant_n46(_uploadFile, _downloadFile, value);
+function from_candid_ClosureType_n42(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ClosureType): ClosureType {
+    return from_candid_variant_n43(_uploadFile, _downloadFile, value);
 }
 function from_candid_CustomProperty_n32(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _CustomProperty): CustomProperty {
     return from_candid_record_n33(_uploadFile, _downloadFile, value);
@@ -979,35 +976,32 @@ function from_candid_CustomProperty_n32(_uploadFile: (file: ExternalBlob) => Pro
 function from_candid_CustomToolDefinition_n29(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _CustomToolDefinition): CustomToolDefinition {
     return from_candid_record_n30(_uploadFile, _downloadFile, value);
 }
-function from_candid_FilledBracketGroup_n42(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _FilledBracketGroup): FilledBracketGroup {
-    return from_candid_record_n43(_uploadFile, _downloadFile, value);
+async function from_candid_ExternalBlob_n47(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ExternalBlob): Promise<ExternalBlob> {
+    return await _downloadFile(value);
 }
 function from_candid_PropertyType_n34(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _PropertyType): PropertyType {
     return from_candid_variant_n35(_uploadFile, _downloadFile, value);
 }
-function from_candid_Trade_n37(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Trade): Trade {
-    return from_candid_record_n38(_uploadFile, _downloadFile, value);
+async function from_candid_Trade_n37(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Trade): Promise<Trade> {
+    return await from_candid_record_n38(_uploadFile, _downloadFile, value);
 }
-function from_candid_UserRole_n50(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
-    return from_candid_variant_n51(_uploadFile, _downloadFile, value);
+function from_candid_UserRole_n49(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
+    return from_candid_variant_n50(_uploadFile, _downloadFile, value);
 }
 function from_candid__CaffeineStorageRefillResult_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: __CaffeineStorageRefillResult): _CaffeineStorageRefillResult {
     return from_candid_record_n5(_uploadFile, _downloadFile, value);
 }
-function from_candid_opt_n44(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [number]): number | null {
+function from_candid_opt_n48(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UserProfile]): UserProfile | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n49(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UserProfile]): UserProfile | null {
-    return value.length === 0 ? null : value[0];
-}
-function from_candid_opt_n52(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_CustomToolDefinition]): CustomToolDefinition | null {
+function from_candid_opt_n51(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_CustomToolDefinition]): CustomToolDefinition | null {
     return value.length === 0 ? null : from_candid_CustomToolDefinition_n29(_uploadFile, _downloadFile, value[0]);
 }
-function from_candid_opt_n53(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Model]): Model | null {
+function from_candid_opt_n52(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Model]): Model | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n54(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Trade]): Trade | null {
-    return value.length === 0 ? null : from_candid_Trade_n37(_uploadFile, _downloadFile, value[0]);
+async function from_candid_opt_n53(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Trade]): Promise<Trade | null> {
+    return value.length === 0 ? null : await from_candid_Trade_n37(_uploadFile, _downloadFile, value[0]);
 }
 function from_candid_opt_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [boolean]): boolean | null {
     return value.length === 0 ? null : value[0];
@@ -1060,109 +1054,100 @@ function from_candid_record_n33(_uploadFile: (file: ExternalBlob) => Promise<Uin
         default_value: value.default_value
     };
 }
-function from_candid_record_n38(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+async function from_candid_record_n38(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: string;
     direction: string;
     asset: string;
     owner: Principal;
     model_conditions: Array<_ModelCondition>;
+    mood: string;
+    bracket_order_outcomes: Array<_BracketOrderOutcome>;
+    mistakeTags: Array<string>;
     created_at: bigint;
-    bracket_order_outcome: _BracketOrderOutcome;
     calculation_method: _CalculationMethod;
     is_completed: boolean;
+    would_take_again: boolean;
+    strengthTags: Array<string>;
     position_sizer: _PositionSizer;
     notes: string;
     adherence_score: number;
-    emotions: Array<string>;
+    quickTags: Array<string>;
     model_id: string;
     bracket_order: _BracketOrder;
     value_per_unit: number;
-    images: Array<string>;
-}): {
+    images: Array<_ExternalBlob>;
+}): Promise<{
     id: string;
     direction: string;
     asset: string;
     owner: Principal;
     model_conditions: Array<ModelCondition>;
+    mood: string;
+    bracket_order_outcomes: Array<BracketOrderOutcome>;
+    mistakeTags: Array<string>;
     created_at: bigint;
-    bracket_order_outcome: BracketOrderOutcome;
     calculation_method: CalculationMethod;
     is_completed: boolean;
+    would_take_again: boolean;
+    strengthTags: Array<string>;
     position_sizer: PositionSizer;
     notes: string;
     adherence_score: number;
-    emotions: Array<string>;
+    quickTags: Array<string>;
     model_id: string;
     bracket_order: BracketOrder;
     value_per_unit: number;
-    images: Array<string>;
-} {
+    images: Array<ExternalBlob>;
+}> {
     return {
         id: value.id,
         direction: value.direction,
         asset: value.asset,
         owner: value.owner,
         model_conditions: value.model_conditions,
+        mood: value.mood,
+        bracket_order_outcomes: from_candid_vec_n39(_uploadFile, _downloadFile, value.bracket_order_outcomes),
+        mistakeTags: value.mistakeTags,
         created_at: value.created_at,
-        bracket_order_outcome: from_candid_BracketOrderOutcome_n39(_uploadFile, _downloadFile, value.bracket_order_outcome),
-        calculation_method: from_candid_CalculationMethod_n47(_uploadFile, _downloadFile, value.calculation_method),
+        calculation_method: from_candid_CalculationMethod_n44(_uploadFile, _downloadFile, value.calculation_method),
         is_completed: value.is_completed,
+        would_take_again: value.would_take_again,
+        strengthTags: value.strengthTags,
         position_sizer: value.position_sizer,
         notes: value.notes,
         adherence_score: value.adherence_score,
-        emotions: value.emotions,
+        quickTags: value.quickTags,
         model_id: value.model_id,
         bracket_order: value.bracket_order,
         value_per_unit: value.value_per_unit,
-        images: value.images
+        images: await from_candid_vec_n46(_uploadFile, _downloadFile, value.images)
     };
 }
-function from_candid_record_n40(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    rr: number;
-    final_pl_pct: number;
-    final_pl_usd: number;
-    filled_bracket_groups: Array<_FilledBracketGroup>;
-}): {
-    rr: number;
-    final_pl_pct: number;
-    final_pl_usd: number;
-    filled_bracket_groups: Array<FilledBracketGroup>;
-} {
-    return {
-        rr: value.rr,
-        final_pl_pct: value.final_pl_pct,
-        final_pl_usd: value.final_pl_usd,
-        filled_bracket_groups: from_candid_vec_n41(_uploadFile, _downloadFile, value.filled_bracket_groups)
-    };
-}
-function from_candid_record_n43(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    manual_close_price: [] | [number];
-    break_even_applied: boolean;
+function from_candid_record_n41(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    outcome_time: bigint;
     closure_price: number;
     size: number;
-    break_even_price: [] | [number];
+    bracket_group: _BracketGroup;
     bracket_id: string;
-    manual_close_applied: boolean;
+    execution_price: number;
     closure_type: _ClosureType;
 }): {
-    manual_close_price?: number;
-    break_even_applied: boolean;
+    outcome_time: bigint;
     closure_price: number;
     size: number;
-    break_even_price?: number;
+    bracket_group: BracketGroup;
     bracket_id: string;
-    manual_close_applied: boolean;
+    execution_price: number;
     closure_type: ClosureType;
 } {
     return {
-        manual_close_price: record_opt_to_undefined(from_candid_opt_n44(_uploadFile, _downloadFile, value.manual_close_price)),
-        break_even_applied: value.break_even_applied,
+        outcome_time: value.outcome_time,
         closure_price: value.closure_price,
         size: value.size,
-        break_even_price: record_opt_to_undefined(from_candid_opt_n44(_uploadFile, _downloadFile, value.break_even_price)),
+        bracket_group: value.bracket_group,
         bracket_id: value.bracket_id,
-        manual_close_applied: value.manual_close_applied,
-        closure_type: from_candid_ClosureType_n45(_uploadFile, _downloadFile, value.closure_type)
+        execution_price: value.execution_price,
+        closure_type: from_candid_ClosureType_n42(_uploadFile, _downloadFile, value.closure_type)
     };
 }
 function from_candid_record_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
@@ -1177,7 +1162,7 @@ function from_candid_record_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint
         topped_up_amount: record_opt_to_undefined(from_candid_opt_n7(_uploadFile, _downloadFile, value.topped_up_amount))
     };
 }
-function from_candid_record_n55(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+async function from_candid_record_n54(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     updatedTrade: _Trade;
     updatedAnalytics: {
         totalTrades: number;
@@ -1197,7 +1182,7 @@ function from_candid_record_n55(_uploadFile: (file: ExternalBlob) => Promise<Uin
         };
         winRate: number;
     };
-}): {
+}): Promise<{
     updatedTrade: Trade;
     updatedAnalytics: {
         totalTrades: number;
@@ -1209,13 +1194,13 @@ function from_candid_record_n55(_uploadFile: (file: ExternalBlob) => Promise<Uin
         bracketOrderValidation: Variant_valid_invalid_take_profit_order_invalid_event_combination_invalid_stop_loss_adjustment;
         winRate: number;
     };
-} {
+}> {
     return {
-        updatedTrade: from_candid_Trade_n37(_uploadFile, _downloadFile, value.updatedTrade),
-        updatedAnalytics: from_candid_record_n56(_uploadFile, _downloadFile, value.updatedAnalytics)
+        updatedTrade: await from_candid_Trade_n37(_uploadFile, _downloadFile, value.updatedTrade),
+        updatedAnalytics: from_candid_record_n55(_uploadFile, _downloadFile, value.updatedAnalytics)
     };
 }
-function from_candid_record_n56(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n55(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     totalTrades: number;
     avgPL: number;
     avgRR: number;
@@ -1249,7 +1234,7 @@ function from_candid_record_n56(_uploadFile: (file: ExternalBlob) => Promise<Uin
         totalPL: value.totalPL,
         totalRR: value.totalRR,
         totalWins: value.totalWins,
-        bracketOrderValidation: from_candid_variant_n57(_uploadFile, _downloadFile, value.bracketOrderValidation),
+        bracketOrderValidation: from_candid_variant_n56(_uploadFile, _downloadFile, value.bracketOrderValidation),
         winRate: value.winRate
     };
 }
@@ -1264,7 +1249,7 @@ function from_candid_variant_n35(_uploadFile: (file: ExternalBlob) => Promise<Ui
 }): PropertyType {
     return "text" in value ? PropertyType.text : "select" in value ? PropertyType.select : "toggle" in value ? PropertyType.toggle : "number" in value ? PropertyType.number : value;
 }
-function from_candid_variant_n46(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n43(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     take_profit: null;
 } | {
     manual_close: null;
@@ -1275,14 +1260,14 @@ function from_candid_variant_n46(_uploadFile: (file: ExternalBlob) => Promise<Ui
 }): ClosureType {
     return "take_profit" in value ? ClosureType.take_profit : "manual_close" in value ? ClosureType.manual_close : "stop_loss" in value ? ClosureType.stop_loss : "break_even" in value ? ClosureType.break_even : value;
 }
-function from_candid_variant_n48(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n45(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     tick: null;
 } | {
     point: null;
 }): CalculationMethod {
     return "tick" in value ? CalculationMethod.tick : "point" in value ? CalculationMethod.point : value;
 }
-function from_candid_variant_n51(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n50(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     admin: null;
 } | {
     user: null;
@@ -1291,7 +1276,7 @@ function from_candid_variant_n51(_uploadFile: (file: ExternalBlob) => Promise<Ui
 }): UserRole {
     return "admin" in value ? UserRole.admin : "user" in value ? UserRole.user : "guest" in value ? UserRole.guest : value;
 }
-function from_candid_variant_n57(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n56(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     valid: null;
 } | {
     invalid_take_profit_order: null;
@@ -1308,20 +1293,23 @@ function from_candid_vec_n28(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
 function from_candid_vec_n31(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_CustomProperty>): Array<CustomProperty> {
     return value.map((x)=>from_candid_CustomProperty_n32(_uploadFile, _downloadFile, x));
 }
-function from_candid_vec_n36(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Trade>): Array<Trade> {
-    return value.map((x)=>from_candid_Trade_n37(_uploadFile, _downloadFile, x));
+async function from_candid_vec_n36(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Trade>): Promise<Array<Trade>> {
+    return await Promise.all(value.map(async (x)=>await from_candid_Trade_n37(_uploadFile, _downloadFile, x)));
 }
-function from_candid_vec_n41(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_FilledBracketGroup>): Array<FilledBracketGroup> {
-    return value.map((x)=>from_candid_FilledBracketGroup_n42(_uploadFile, _downloadFile, x));
+function from_candid_vec_n39(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_BracketOrderOutcome>): Array<BracketOrderOutcome> {
+    return value.map((x)=>from_candid_BracketOrderOutcome_n40(_uploadFile, _downloadFile, x));
 }
-function to_candid_BracketOrderOutcome_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: BracketOrderOutcome): _BracketOrderOutcome {
-    return to_candid_record_n20(_uploadFile, _downloadFile, value);
+async function from_candid_vec_n46(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_ExternalBlob>): Promise<Array<ExternalBlob>> {
+    return await Promise.all(value.map(async (x)=>await from_candid_ExternalBlob_n47(_uploadFile, _downloadFile, x)));
 }
-function to_candid_CalculationMethod_n26(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: CalculationMethod): _CalculationMethod {
-    return to_candid_variant_n27(_uploadFile, _downloadFile, value);
+function to_candid_BracketOrderOutcome_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: BracketOrderOutcome): _BracketOrderOutcome {
+    return to_candid_record_n21(_uploadFile, _downloadFile, value);
 }
-function to_candid_ClosureType_n24(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ClosureType): _ClosureType {
+function to_candid_CalculationMethod_n24(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: CalculationMethod): _CalculationMethod {
     return to_candid_variant_n25(_uploadFile, _downloadFile, value);
+}
+function to_candid_ClosureType_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ClosureType): _ClosureType {
+    return to_candid_variant_n23(_uploadFile, _downloadFile, value);
 }
 function to_candid_CustomProperty_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: CustomProperty): _CustomProperty {
     return to_candid_record_n14(_uploadFile, _downloadFile, value);
@@ -1329,14 +1317,14 @@ function to_candid_CustomProperty_n13(_uploadFile: (file: ExternalBlob) => Promi
 function to_candid_CustomToolDefinition_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: CustomToolDefinition): _CustomToolDefinition {
     return to_candid_record_n11(_uploadFile, _downloadFile, value);
 }
-function to_candid_FilledBracketGroup_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: FilledBracketGroup): _FilledBracketGroup {
-    return to_candid_record_n23(_uploadFile, _downloadFile, value);
+async function to_candid_ExternalBlob_n27(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ExternalBlob): Promise<_ExternalBlob> {
+    return await _uploadFile(value);
 }
 function to_candid_PropertyType_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: PropertyType): _PropertyType {
     return to_candid_variant_n16(_uploadFile, _downloadFile, value);
 }
-function to_candid_Trade_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Trade): _Trade {
-    return to_candid_record_n18(_uploadFile, _downloadFile, value);
+async function to_candid_Trade_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Trade): Promise<_Trade> {
+    return await to_candid_record_n18(_uploadFile, _downloadFile, value);
 }
 function to_candid_UserRole_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): _UserRole {
     return to_candid_variant_n9(_uploadFile, _downloadFile, value);
@@ -1392,109 +1380,100 @@ function to_candid_record_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8
         default_value: value.default_value
     };
 }
-function to_candid_record_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+async function to_candid_record_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: string;
     direction: string;
     asset: string;
     owner: Principal;
     model_conditions: Array<ModelCondition>;
+    mood: string;
+    bracket_order_outcomes: Array<BracketOrderOutcome>;
+    mistakeTags: Array<string>;
     created_at: bigint;
-    bracket_order_outcome: BracketOrderOutcome;
     calculation_method: CalculationMethod;
     is_completed: boolean;
+    would_take_again: boolean;
+    strengthTags: Array<string>;
     position_sizer: PositionSizer;
     notes: string;
     adherence_score: number;
-    emotions: Array<string>;
+    quickTags: Array<string>;
     model_id: string;
     bracket_order: BracketOrder;
     value_per_unit: number;
-    images: Array<string>;
-}): {
+    images: Array<ExternalBlob>;
+}): Promise<{
     id: string;
     direction: string;
     asset: string;
     owner: Principal;
     model_conditions: Array<_ModelCondition>;
+    mood: string;
+    bracket_order_outcomes: Array<_BracketOrderOutcome>;
+    mistakeTags: Array<string>;
     created_at: bigint;
-    bracket_order_outcome: _BracketOrderOutcome;
     calculation_method: _CalculationMethod;
     is_completed: boolean;
+    would_take_again: boolean;
+    strengthTags: Array<string>;
     position_sizer: _PositionSizer;
     notes: string;
     adherence_score: number;
-    emotions: Array<string>;
+    quickTags: Array<string>;
     model_id: string;
     bracket_order: _BracketOrder;
     value_per_unit: number;
-    images: Array<string>;
-} {
+    images: Array<_ExternalBlob>;
+}> {
     return {
         id: value.id,
         direction: value.direction,
         asset: value.asset,
         owner: value.owner,
         model_conditions: value.model_conditions,
+        mood: value.mood,
+        bracket_order_outcomes: to_candid_vec_n19(_uploadFile, _downloadFile, value.bracket_order_outcomes),
+        mistakeTags: value.mistakeTags,
         created_at: value.created_at,
-        bracket_order_outcome: to_candid_BracketOrderOutcome_n19(_uploadFile, _downloadFile, value.bracket_order_outcome),
-        calculation_method: to_candid_CalculationMethod_n26(_uploadFile, _downloadFile, value.calculation_method),
+        calculation_method: to_candid_CalculationMethod_n24(_uploadFile, _downloadFile, value.calculation_method),
         is_completed: value.is_completed,
+        would_take_again: value.would_take_again,
+        strengthTags: value.strengthTags,
         position_sizer: value.position_sizer,
         notes: value.notes,
         adherence_score: value.adherence_score,
-        emotions: value.emotions,
+        quickTags: value.quickTags,
         model_id: value.model_id,
         bracket_order: value.bracket_order,
         value_per_unit: value.value_per_unit,
-        images: value.images
+        images: await to_candid_vec_n26(_uploadFile, _downloadFile, value.images)
     };
 }
-function to_candid_record_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    rr: number;
-    final_pl_pct: number;
-    final_pl_usd: number;
-    filled_bracket_groups: Array<FilledBracketGroup>;
-}): {
-    rr: number;
-    final_pl_pct: number;
-    final_pl_usd: number;
-    filled_bracket_groups: Array<_FilledBracketGroup>;
-} {
-    return {
-        rr: value.rr,
-        final_pl_pct: value.final_pl_pct,
-        final_pl_usd: value.final_pl_usd,
-        filled_bracket_groups: to_candid_vec_n21(_uploadFile, _downloadFile, value.filled_bracket_groups)
-    };
-}
-function to_candid_record_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    manual_close_price?: number;
-    break_even_applied: boolean;
+function to_candid_record_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    outcome_time: bigint;
     closure_price: number;
     size: number;
-    break_even_price?: number;
+    bracket_group: BracketGroup;
     bracket_id: string;
-    manual_close_applied: boolean;
+    execution_price: number;
     closure_type: ClosureType;
 }): {
-    manual_close_price: [] | [number];
-    break_even_applied: boolean;
+    outcome_time: bigint;
     closure_price: number;
     size: number;
-    break_even_price: [] | [number];
+    bracket_group: _BracketGroup;
     bracket_id: string;
-    manual_close_applied: boolean;
+    execution_price: number;
     closure_type: _ClosureType;
 } {
     return {
-        manual_close_price: value.manual_close_price ? candid_some(value.manual_close_price) : candid_none(),
-        break_even_applied: value.break_even_applied,
+        outcome_time: value.outcome_time,
         closure_price: value.closure_price,
         size: value.size,
-        break_even_price: value.break_even_price ? candid_some(value.break_even_price) : candid_none(),
+        bracket_group: value.bracket_group,
         bracket_id: value.bracket_id,
-        manual_close_applied: value.manual_close_applied,
-        closure_type: to_candid_ClosureType_n24(_uploadFile, _downloadFile, value.closure_type)
+        execution_price: value.execution_price,
+        closure_type: to_candid_ClosureType_n22(_uploadFile, _downloadFile, value.closure_type)
     };
 }
 function to_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
@@ -1525,7 +1504,7 @@ function to_candid_variant_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint
         number_: null
     } : value;
 }
-function to_candid_variant_n25(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ClosureType): {
+function to_candid_variant_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ClosureType): {
     take_profit: null;
 } | {
     manual_close: null;
@@ -1544,7 +1523,7 @@ function to_candid_variant_n25(_uploadFile: (file: ExternalBlob) => Promise<Uint
         break_even: null
     } : value;
 }
-function to_candid_variant_n27(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: CalculationMethod): {
+function to_candid_variant_n25(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: CalculationMethod): {
     tick: null;
 } | {
     point: null;
@@ -1573,8 +1552,11 @@ function to_candid_variant_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8
 function to_candid_vec_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<CustomProperty>): Array<_CustomProperty> {
     return value.map((x)=>to_candid_CustomProperty_n13(_uploadFile, _downloadFile, x));
 }
-function to_candid_vec_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<FilledBracketGroup>): Array<_FilledBracketGroup> {
-    return value.map((x)=>to_candid_FilledBracketGroup_n22(_uploadFile, _downloadFile, x));
+function to_candid_vec_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<BracketOrderOutcome>): Array<_BracketOrderOutcome> {
+    return value.map((x)=>to_candid_BracketOrderOutcome_n20(_uploadFile, _downloadFile, x));
+}
+async function to_candid_vec_n26(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<ExternalBlob>): Promise<Array<_ExternalBlob>> {
+    return await Promise.all(value.map(async (x)=>await to_candid_ExternalBlob_n27(_uploadFile, _downloadFile, x)));
 }
 export interface CreateActorOptions {
     agent?: Agent;

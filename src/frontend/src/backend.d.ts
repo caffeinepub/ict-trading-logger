@@ -7,6 +7,13 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
+export class ExternalBlob {
+    getBytes(): Promise<Uint8Array<ArrayBuffer>>;
+    getDirectURL(): string;
+    static fromURL(url: string): ExternalBlob;
+    static fromBytes(blob: Uint8Array<ArrayBuffer>): ExternalBlob;
+    withUploadProgress(onProgress: (percentage: number) => void): ExternalBlob;
+}
 export interface BracketOrder {
     bracket_groups: Array<BracketGroup>;
     primary_stop_loss: number;
@@ -22,18 +29,22 @@ export interface Trade {
     asset: string;
     owner: Principal;
     model_conditions: Array<ModelCondition>;
+    mood: string;
+    bracket_order_outcomes: Array<BracketOrderOutcome>;
+    mistakeTags: Array<string>;
     created_at: bigint;
-    bracket_order_outcome: BracketOrderOutcome;
     calculation_method: CalculationMethod;
     is_completed: boolean;
+    would_take_again: boolean;
+    strengthTags: Array<string>;
     position_sizer: PositionSizer;
     notes: string;
     adherence_score: number;
-    emotions: Array<string>;
+    quickTags: Array<string>;
     model_id: string;
     bracket_order: BracketOrder;
     value_per_unit: number;
-    images: Array<string>;
+    images: Array<ExternalBlob>;
 }
 export interface CustomToolDefinition {
     id: string;
@@ -43,6 +54,12 @@ export interface CustomToolDefinition {
     properties: Array<CustomProperty>;
     created_at: bigint;
 }
+export interface ModelCondition {
+    id: string;
+    isChecked: boolean;
+    zone: string;
+    description: string;
+}
 export interface BracketGroup {
     size: number;
     take_profit_price: number;
@@ -50,17 +67,14 @@ export interface BracketGroup {
     bracket_id: string;
     stop_loss_price: number;
 }
-export interface ModelCondition {
-    id: string;
-    isChecked: boolean;
-    zone: string;
-    description: string;
-}
 export interface BracketOrderOutcome {
-    rr: number;
-    final_pl_pct: number;
-    final_pl_usd: number;
-    filled_bracket_groups: Array<FilledBracketGroup>;
+    outcome_time: bigint;
+    closure_price: number;
+    size: number;
+    bracket_group: BracketGroup;
+    bracket_id: string;
+    execution_price: number;
+    closure_type: ClosureType;
 }
 export interface ToolConfig {
     id: string;
@@ -80,16 +94,6 @@ export interface PositionSizer {
     primary_stop_loss: number;
     risk_percentage: number;
     entry_price: number;
-}
-export interface FilledBracketGroup {
-    manual_close_price?: number;
-    break_even_applied: boolean;
-    closure_price: number;
-    size: number;
-    break_even_price?: number;
-    bracket_id: string;
-    manual_close_applied: boolean;
-    closure_type: ClosureType;
 }
 export interface Model {
     id: string;
@@ -174,7 +178,7 @@ export interface backendInterface {
     initializeAccessControl(): Promise<void>;
     isCallerAdmin(): Promise<boolean>;
     mapTradeConditionsToModel(trade_conditions: Array<ModelCondition>, model_conditions: Array<ModelCondition>): Promise<Array<ModelCondition>>;
-    saveBracketOrderOutcome(trade_id: string, outcome_data: BracketOrderOutcome): Promise<{
+    saveBracketOrderOutcome(trade_id: string, bracket_outcome: BracketOrderOutcome): Promise<{
         updatedTrade: Trade;
         updatedAnalytics: {
             totalTrades: number;
@@ -202,6 +206,6 @@ export interface backendInterface {
     }>;
     updateTrade(trade: Trade): Promise<void>;
     validateBracketGroups(bracket_groups: Array<BracketGroup>, direction: string): Promise<boolean>;
-    validateBracketOrderRules(outcome_data: BracketOrderOutcome, original_bracket_order: BracketOrder): Promise<Variant_valid_invalid_take_profit_order_invalid_event_combination_invalid_stop_loss_adjustment>;
-    validateOutcomeSequence(filled_bracket_groups: Array<FilledBracketGroup>): Promise<boolean>;
+    validateBracketOrderRules(bracket_order_outcome: BracketOrderOutcome, original_bracket_order: BracketOrder): Promise<Variant_valid_invalid_take_profit_order_invalid_event_combination_invalid_stop_loss_adjustment>;
+    validateOutcomeSequence(bracket_order_outcomes: Array<BracketOrderOutcome>): Promise<boolean>;
 }

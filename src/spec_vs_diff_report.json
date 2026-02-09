@@ -1,16 +1,106 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-07T20:09:45.887Z",
-  "summary": "Diff implements an inline Trade Logger experience on the Trades (Trade Journal) page by conditionally rendering TradeForm in-page (instead of a dialog) and adds CSS to keep the inline form full-width and overflow-safe. Preload flow via Setup Identifier appears preserved via preloadedModelId/preloadedObservations passed into TradeForm.",
-  "missing_requirements": [],
-  "hallucinated_features": [],
+  "generatedAt": "2026-02-09T04:58:50.148Z",
+  "summary": "Diff implements parts of backend trade type migration and a new TradeImagesField using ExternalBlob, plus various unrelated frontend UX/layout/analytics expansions. Core requested features (Calendar view, Comparison view, customizable dashboard with persisted layout, coherent new theme) are not evidenced in the diff summary. Advanced Notes tags are added at the type/migration level but not clearly wired through reflection utilities or editors.",
+  "missing_requirements": [
+    {
+      "id": "REQ-1",
+      "requirement": "Advanced Notes: persist/retrieve quickTags[], mistakeTags[], strengthTags[]; default old trades to empty arrays; allow viewing/editing these fields in trade create/edit and trade outcome edit flows; keep per-user isolation.",
+      "reason": "While migration adds quickTags/mistakeTags/strengthTags to the new Trade type, the frontend reflection model still only includes notes/mood/images/would_take_again and the shown outcome editor changes do not include any UI/state for editing these tags. No evidence in the diff summary of outcome/editor wiring for these fields or defaulting logic on read in the app layer.",
+      "evidence": [
+        "backend/migration.mo",
+        "frontend/src/utils/trade/reflectionModel.ts",
+        "frontend/src/components/trade/TradeOutcomeEditor.tsx",
+        "frontend-file-summaries.txt (TradeForm summary mentions initializing fields but no visible editing UI in provided truncation)"
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "requirement": "Replace screenshot handling to store binaries in backend blob storage and store only stable references in Trade.images; support persistence across reload; allow removal; no voice notes UI/APIs.",
+      "reason": "Frontend TradeImagesField converts selected files to bytes and creates ExternalBlob instances locally, but the diff summary does not show any explicit backend upload API usage or mutation flow that persists blobs independently and stores only stable references (IDs/URLs) in Trade.images. Backend main.mo imports blob-storage modules but the provided truncation does not evidence the required screenshot upload/delete endpoints or their integration with trade save/update hooks.",
+      "evidence": [
+        "frontend/src/components/trade/TradeImagesField.tsx",
+        "backend/main.mo (imports Storage/MixinStorage but implementation not shown in truncation)",
+        "backend/migration.mo (images type changes to [Storage.ExternalBlob])"
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "requirement": "Add Calendar month-grid view with per-day aggregates and clickable day-to-trades list, accessible from main navigation.",
+      "reason": "No files in the diff summary indicate a new Calendar page/view, navigation entry, month-grid rendering, daily aggregation UI, or day click-through trade list.",
+      "evidence": [
+        "frontend-file-summaries.txt (no Calendar page listed among modified files)"
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "requirement": "Add Side-by-Side Comparison page with independently configurable left/right panels, date range quick picks (week/month/custom), mirrored KPIs and at least one mirrored chart using existing analytics utilities.",
+      "reason": "No evidence of a Comparison page/view, navigation entry, comparison configuration controls, or mirrored analytics rendering in the diff summary.",
+      "evidence": [
+        "frontend-file-summaries.txt (no Comparison page listed among modified files)"
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "requirement": "Customizable Analytics Dashboard: choose modules, hide/show toggles, reorder, persist layout per user in backend, default layout fallback, existing filters still apply.",
+      "reason": "Analytics page is described as having many tabbed sections, but there is no evidence of a 'Customize dashboard' control, module hide/show, reordering, or backend persistence of per-user dashboard layouts.",
+      "evidence": [
+        "frontend-file-summaries.txt (frontend/src/pages/Analytics.tsx summary)",
+        "backend/main.mo (no shown API/state for dashboard layout in truncation)"
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "requirement": "Apply a coherent distinctive visual theme consistently across new Calendar/Comparison/Dashboard customization UI; avoid blue/purple-dominant palette; English labels; readable in light/dark if applicable.",
+      "reason": "The new Calendar/Comparison/Dashboard customization UIs are not evidenced as implemented, and no theme work specific to these new pages is shown. Global CSS changes are described, but not tied to the required new pages/components.",
+      "evidence": [
+        "frontend-file-summaries.txt (no new Calendar/Comparison/Customization components listed)",
+        "frontend/src/index.css (mentioned in summaries, but no evidence it targets the requested new UIs)"
+      ]
+    }
+  ],
+  "hallucinated_features": [
+    {
+      "description": "Streamlined authentication flow and Welcome Modal behavior changes (show dashboard instantly for authenticated users; remove intermediate loading screens).",
+      "reason": "Not requested by any REQ; BuildRequest focuses on calendar/comparison/dashboard customization/advanced notes/screenshots.",
+      "evidence": [
+        "frontend-file-summaries.txt (frontend/src/App.tsx summary)"
+      ]
+    },
+    {
+      "description": "Expanded/comprehensive Analytics page with nine tabbed sections including Monte Carlo simulation and multiple new analytics areas.",
+      "reason": "REQ-5 asks for customizable module layout on analytics home, not an expansion into many new tabbed analytic sections or Monte Carlo simulation.",
+      "evidence": [
+        "frontend-file-summaries.txt (frontend/src/pages/Analytics.tsx summary)"
+      ]
+    },
+    {
+      "description": "Model builder/workspace feature expansions (custom tool palette integration, tool manager dialog access, unified tool placement flow).",
+      "reason": "Not requested by any REQ in the BuildRequest.",
+      "evidence": [
+        "frontend-file-summaries.txt (frontend/src/components/ModelBuilder.tsx summary)",
+        "frontend-file-summaries.txt (frontend/src/pages/Models.tsx summary)"
+      ]
+    },
+    {
+      "description": "Trades page and global CSS changes focused on preventing horizontal scrolling across devices (responsive container/overflow rules).",
+      "reason": "Not part of requested Calendar/Comparison/Dashboard customization/Advanced Notes scope (though generally beneficial).",
+      "evidence": [
+        "frontend-file-summaries.txt (frontend/src/pages/Trades.tsx summary)",
+        "frontend-file-summaries.txt (frontend/src/index.css summary)"
+      ]
+    }
+  ],
   "confidence": 0.66,
   "changed_files": [
+    "backend/main.mo",
+    "backend/migration.mo",
     "frontend-file-summaries.txt",
     "frontend/src/components/TradeForm.tsx",
-    "frontend/src/index.css",
-    "frontend/src/pages/Trades.tsx",
+    "frontend/src/components/trade/TradeImagesField.tsx",
+    "frontend/src/components/trade/TradeOutcomeEditor.tsx",
+    "frontend/src/utils/trade/reflectionModel.ts",
     "project_state.json"
   ]
 }
