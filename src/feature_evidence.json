@@ -2,12 +2,11 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-implement-an-advanced-notes-enhancement-for-trades-by-extending-the-existing-trade-reflection-data-to-support-a-quick-tags-multi-value-text-tags-and-b-categorized-mistake-strength-labels-multi-value-two-distinct-categories-while-keeping-existing-fields-notes-text-mood-images-intact",
-      "featureTitle": "Implement an Advanced Notes enhancement for trades by extending the existing trade reflection data to support: (a) quick tags (multi-value text tags), and (b) categorized mistake/strength labels (multi-value, two distinct categories), while keeping existing fields (notes text, mood, images) intact.",
+      "featureId": "feature-update-the-model-builder-mobile-layout-so-the-tool-palette-access-button-remains-visible-and-tappable-while-the-user-scrolls-through-the-narrative-framework-execution-zones-e-g-by-making-the-tool-palette-trigger-sticky-or-a-floating-action-button",
+      "featureTitle": "Update the Model Builder mobile layout so the Tool Palette access button remains visible and tappable while the user scrolls through the Narrative / Framework / Execution zones (e.g., by making the Tool Palette trigger sticky or a floating action button).",
       "files": [
-        "frontend/src/components/TradeForm.tsx",
-        "frontend/src/components/trade/TradeOutcomeEditor.tsx",
-        "frontend/src/utils/trade/reflectionModel.ts"
+        "frontend/src/components/ModelBuilder.tsx",
+        "frontend/src/index.css"
       ],
       "components": [
         "authorization@1.0.1",
@@ -24,12 +23,10 @@
       "confidence": "high"
     },
     {
-      "featureId": "feature-replace-the-current-screenshot-handling-that-stores-images-as-data-urls-in-the-frontend-with-true-blob-storage-in-the-backend-canister-using-stable-references-ids-urls-stored-on-the-trade-images-field-restrict-the-scope-to-screenshots-only-no-voice-notes",
-      "featureTitle": "Replace the current screenshot handling that stores images as data URLs in the frontend with true blob storage in the backend canister, using stable references (IDs/URLs) stored on the Trade.images field; restrict the scope to screenshots only (no voice notes).",
+      "featureId": "feature-ensure-the-always-accessible-tool-palette-trigger-visually-indicates-when-a-tool-is-currently-selected-for-placement-and-provide-an-always-accessible-way-to-cancel-placement-mode-on-mobile-when-a-tool-is-selected",
+      "featureTitle": "Ensure the always-accessible Tool Palette trigger visually indicates when a tool is currently selected for placement, and provide an always-accessible way to cancel placement mode on mobile when a tool is selected.",
       "files": [
-        "frontend/src/components/trade/TradeImagesField.tsx",
-        "frontend/src/components/trade/TradeOutcomeEditor.tsx",
-        "frontend/src/utils/trade/reflectionModel.ts"
+        "frontend/src/components/ModelBuilder.tsx"
       ],
       "components": [
         "authorization@1.0.1",

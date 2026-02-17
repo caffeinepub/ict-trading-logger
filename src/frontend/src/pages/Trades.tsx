@@ -204,7 +204,7 @@ export default function Trades() {
 
   return (
     <ErrorBoundary>
-      <div className="container mx-auto p-4 sm:p-6 space-y-6 max-w-full overflow-x-hidden">
+      <div className="container py-8 px-4 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl sm:text-3xl font-bold">Trade Journal</h1>

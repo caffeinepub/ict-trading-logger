@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Save, TrendingUp, TrendingDown, DollarSign, Target } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Save, TrendingUp, TrendingDown, DollarSign, Target, Clock } from 'lucide-react';
 import type { Trade, BracketOrderOutcome } from '../../backend';
 import { ClosureType as ClosureTypeEnum, ExternalBlob } from '../../backend';
 import BracketOutcomeSelector from './BracketOutcomeSelector';
@@ -30,6 +32,30 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
   const [images, setImages] = useState<ExternalBlob[]>([]);
   const [wouldTakeAgain, setWouldTakeAgain] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  
+  // Trade close time state
+  const [closeDateTime, setCloseDateTime] = useState('');
+  const [useCurrentTime, setUseCurrentTime] = useState(true);
+
+  // Update current time when toggle is enabled
+  useEffect(() => {
+    if (useCurrentTime) {
+      const updateTime = () => {
+        const now = new Date();
+        // Format as datetime-local input value (YYYY-MM-DDTHH:mm)
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        setCloseDateTime(`${year}-${month}-${day}T${hours}:${minutes}`);
+      };
+      
+      updateTime();
+      const interval = setInterval(updateTime, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [useCurrentTime]);
 
   // Load trade data
   useEffect(() => {
@@ -37,6 +63,21 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
     setMood(trade.mood ? [trade.mood] : []);
     setImages(trade.images || []);
     setWouldTakeAgain(trade.would_take_again || false);
+    
+    // Initialize close time from trade if present
+    if (trade.close_time) {
+      const closeDate = new Date(Number(trade.close_time) / 1000000);
+      const year = closeDate.getFullYear();
+      const month = String(closeDate.getMonth() + 1).padStart(2, '0');
+      const day = String(closeDate.getDate()).padStart(2, '0');
+      const hours = String(closeDate.getHours()).padStart(2, '0');
+      const minutes = String(closeDate.getMinutes()).padStart(2, '0');
+      setCloseDateTime(`${year}-${month}-${day}T${hours}:${minutes}`);
+      setUseCurrentTime(false);
+    } else {
+      // Default to current time for new outcomes
+      setUseCurrentTime(true);
+    }
     
     const newStates = new Map<string, BracketOutcomeState>();
     
@@ -162,9 +203,19 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
       return;
     }
 
+    // Validate close date/time
+    if (!closeDateTime) {
+      setValidationError('Please enter a trade close date and time');
+      return;
+    }
+
     const { outcomes } = calculateOutcome();
     
-    // Update trade with outcomes and reflection fields
+    // Convert closeDateTime to nanoseconds timestamp
+    const closeDate = new Date(closeDateTime);
+    const closeTimeNanos = BigInt(closeDate.getTime() * 1000000);
+    
+    // Update trade with outcomes, reflection fields, and close_time
     await onSave({
       ...trade,
       bracket_order_outcomes: outcomes,
@@ -173,6 +224,7 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
       images,
       would_take_again: wouldTakeAgain,
       is_completed: true,
+      close_time: closeTimeNanos,
     });
   };
 
@@ -388,6 +440,54 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
             >
               Would you take this trade again?
             </Label>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Trade Close Time */}
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            Trade Close Time
+          </CardTitle>
+          <CardDescription>
+            Specify when this trade was closed
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="use-current-time"
+              checked={useCurrentTime}
+              onCheckedChange={setUseCurrentTime}
+            />
+            <Label
+              htmlFor="use-current-time"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Set close time to now
+            </Label>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="close-datetime">Close Date & Time</Label>
+            <Input
+              id="close-datetime"
+              type="datetime-local"
+              value={closeDateTime}
+              onChange={(e) => {
+                setCloseDateTime(e.target.value);
+                setUseCurrentTime(false);
+              }}
+              disabled={useCurrentTime}
+              className="w-full"
+            />
+            <p className="text-sm text-muted-foreground">
+              {useCurrentTime 
+                ? 'Time is automatically set to current time' 
+                : 'Manually set the trade close time'}
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -6,12 +6,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { toast } from 'sonner';
-import { ChevronDown, ChevronRight, Plus, X, Settings, Save, FileText, GripVertical, ArrowLeft, Menu, MousePointer2, Wrench } from 'lucide-react';
-import type { Model, ToolConfig, CustomToolDefinition } from '../backend';
+import { ChevronDown, ChevronRight, Plus, X, Settings, Save, FileText, GripVertical, ArrowLeft, Menu, MousePointer2, Wrench, ChevronUp } from 'lucide-react';
+import type { Model, ToolConfig, CustomToolDefinition, ExampleImage } from '../backend';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import ToolConfigDialog from './ToolConfigDialog';
 import ModelCardSummary from './ModelCardSummary';
 import CustomToolManagerDialog from './CustomToolManagerDialog';
+import ExampleSetupsField from './model/ExampleSetupsField';
 
 interface ModelBuilderProps {
   model?: Model | null;
@@ -67,10 +68,15 @@ export default function ModelBuilder({ model, onClose }: ModelBuilderProps) {
   const [narrativeTools, setNarrativeTools] = useState<ToolConfig[]>([]);
   const [frameworkTools, setFrameworkTools] = useState<ToolConfig[]>([]);
   const [executionTools, setExecutionTools] = useState<ToolConfig[]>([]);
+  const [exampleImages, setExampleImages] = useState<ExampleImage[]>([]);
   const [editingTool, setEditingTool] = useState<{ tool: ToolConfig; zone: string } | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [isToolPaletteOpen, setIsToolPaletteOpen] = useState(false);
   const [isCustomToolManagerOpen, setIsCustomToolManagerOpen] = useState(false);
+  
+  // Collapsible state for zones and example setups
+  const [zonesExpanded, setZonesExpanded] = useState(true);
+  const [examplesExpanded, setExamplesExpanded] = useState(true);
   
   // Unified tool selection state for click/tap-to-add flow (all screen sizes)
   const [selectedToolToPlace, setSelectedToolToPlace] = useState<ICTTool | null>(null);
@@ -88,6 +94,7 @@ export default function ModelBuilder({ model, onClose }: ModelBuilderProps) {
       setNarrativeTools(model.narrative);
       setFrameworkTools(model.framework);
       setExecutionTools(model.execution);
+      setExampleImages(model.example_images || []);
     }
   }, [model]);
 
@@ -201,6 +208,7 @@ export default function ModelBuilder({ model, onClose }: ModelBuilderProps) {
       narrative: narrativeTools,
       framework: frameworkTools,
       execution: executionTools,
+      example_images: exampleImages,
       created_at: model?.created_at || currentTime || BigInt(Date.now() * 1000000),
     };
 
@@ -409,262 +417,264 @@ export default function ModelBuilder({ model, onClose }: ModelBuilderProps) {
   }
 
   return (
-    <div className="fixed inset-0 pt-32 md:pt-16 pb-[72px] md:pb-0 z-40 bg-background flex flex-col">
-      {/* Zone Selection Prompt (all screen sizes) */}
-      {selectedToolToPlace && (
-        <div className="fixed top-32 md:top-16 left-0 right-0 z-50 bg-primary text-primary-foreground px-4 py-3 shadow-lg">
+    <div className="fixed inset-0 bg-background z-50 flex flex-col">
+      {/* Header */}
+      <div className="flex-shrink-0 border-b bg-card/50 backdrop-blur">
+        <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
-            <MousePointer2 className="w-5 h-5 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="font-medium text-sm">
-                Select a zone to add "{selectedToolToPlace.name}"
-              </p>
-            </div>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
-              onClick={handleCancelPlacement}
+              onClick={onClose}
+              className="h-9 w-9"
             >
-              <X className="w-4 h-4" />
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h2 className="font-display text-lg font-semibold">
+                {model ? 'Edit Model' : 'New Model'}
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Build your trading model
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setStep('summary')}
+              className="gap-2"
+            >
+              <FileText className="w-4 h-4" />
+              <span className="hidden sm:inline">Preview</span>
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={createModel.isPending || updateModel.isPending}
+              size="sm"
+              className="gap-2"
+            >
+              <Save className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                {createModel.isPending || updateModel.isPending ? 'Saving...' : 'Save'}
+              </span>
             </Button>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Compact Sticky Header - Responsive for mobile and desktop */}
-      <div className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-3">
-          {/* Back Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="flex-shrink-0 h-9 w-9"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          
-          {/* Mobile: Hamburger Menu + Model Name */}
-          <div className="flex-1 flex items-center gap-2 md:hidden">
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Desktop Tool Palette Sidebar (hidden on mobile) */}
+        <div className="hidden md:flex md:w-80 border-r bg-card/30 flex-col">
+          <ToolPaletteContent />
+        </div>
+
+        {/* Center Content Area */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
+            {/* Model Info */}
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Model Name</label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g., London Killzone Scalp"
+                  className="text-base"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Description</label>
+                <Input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Brief description of your model"
+                  className="text-base"
+                />
+              </div>
+            </div>
+
+            {/* Collapsible Zones Container */}
+            <Collapsible open={zonesExpanded} onOpenChange={setZonesExpanded}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-card/50 rounded-lg hover:bg-card transition-colors">
+                <h3 className="font-display text-base font-semibold">Model Zones</h3>
+                {zonesExpanded ? (
+                  <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-4 space-y-6">
+                {/* Zone 1: Narrative */}
+                <div
+                  className={`border-2 rounded-lg p-4 transition-all ${
+                    selectedToolToPlace
+                      ? 'border-primary bg-primary/5 cursor-pointer hover:bg-primary/10'
+                      : 'border-border bg-card/30'
+                  }`}
+                  onClick={() => selectedToolToPlace && handleZoneSelect('narrative')}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h3 className="font-display text-base font-semibold">Zone 1: Narrative</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        HTF bias, market structure, liquidity draw
+                      </p>
+                    </div>
+                    {selectedToolToPlace && (
+                      <MousePointer2 className="w-5 h-5 text-primary animate-pulse" />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {narrativeTools.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        {selectedToolToPlace ? 'Click here to add tool' : 'No tools added yet'}
+                      </p>
+                    ) : (
+                      narrativeTools.map(tool => renderToolCard(tool, 'narrative'))
+                    )}
+                  </div>
+                </div>
+
+                {/* Zone 2: Framework */}
+                <div
+                  className={`border-2 rounded-lg p-4 transition-all ${
+                    selectedToolToPlace
+                      ? 'border-primary bg-primary/5 cursor-pointer hover:bg-primary/10'
+                      : 'border-border bg-card/30'
+                  }`}
+                  onClick={() => selectedToolToPlace && handleZoneSelect('framework')}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h3 className="font-display text-base font-semibold">Zone 2: Framework</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Reference levels, dealing ranges, PD arrays
+                      </p>
+                    </div>
+                    {selectedToolToPlace && (
+                      <MousePointer2 className="w-5 h-5 text-primary animate-pulse" />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {frameworkTools.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        {selectedToolToPlace ? 'Click here to add tool' : 'No tools added yet'}
+                      </p>
+                    ) : (
+                      frameworkTools.map(tool => renderToolCard(tool, 'framework'))
+                    )}
+                  </div>
+                </div>
+
+                {/* Zone 3: Execution */}
+                <div
+                  className={`border-2 rounded-lg p-4 transition-all ${
+                    selectedToolToPlace
+                      ? 'border-primary bg-primary/5 cursor-pointer hover:bg-primary/10'
+                      : 'border-border bg-card/30'
+                  }`}
+                  onClick={() => selectedToolToPlace && handleZoneSelect('execution')}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h3 className="font-display text-base font-semibold">Zone 3: Execution</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Entry triggers, time rules, confirmation
+                      </p>
+                    </div>
+                    {selectedToolToPlace && (
+                      <MousePointer2 className="w-5 h-5 text-primary animate-pulse" />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {executionTools.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        {selectedToolToPlace ? 'Click here to add tool' : 'No tools added yet'}
+                      </p>
+                    ) : (
+                      executionTools.map(tool => renderToolCard(tool, 'execution'))
+                    )}
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Collapsible Example Setups */}
+            <Collapsible open={examplesExpanded} onOpenChange={setExamplesExpanded}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-card/50 rounded-lg hover:bg-card transition-colors">
+                <h3 className="font-display text-base font-semibold">Example Setups</h3>
+                {examplesExpanded ? (
+                  <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-4">
+                <ExampleSetupsField
+                  examples={exampleImages}
+                  onChange={setExampleImages}
+                />
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Bottom spacing for mobile FAB */}
+            <div className="h-24 md:h-0" />
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile-only Floating Tool Palette Trigger (sticky) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 safe-area-bottom z-50">
+        <div className="p-4 bg-gradient-to-t from-background via-background to-transparent">
+          {selectedToolToPlace ? (
+            // Placement mode active - show indicator and cancel
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-primary/10 border-2 border-primary rounded-lg px-4 py-3 flex items-center gap-3">
+                <MousePointer2 className="w-5 h-5 text-primary flex-shrink-0 animate-pulse" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-primary truncate">
+                    Placing: {selectedToolToPlace.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Tap a zone to add
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleCancelPlacement}
+                className="h-14 w-14 flex-shrink-0 border-2"
+              >
+                <X className="w-6 h-6" />
+              </Button>
+            </div>
+          ) : (
+            // Normal mode - show tool palette trigger
             <Sheet open={isToolPaletteOpen} onOpenChange={setIsToolPaletteOpen}>
               <SheetTrigger asChild>
-                <Button variant="outline" size="icon" className="h-9 w-9 flex-shrink-0">
-                  <Menu className="w-5 h-5" />
+                <Button
+                  size="lg"
+                  className="w-full h-14 text-base font-semibold gap-3 shadow-lg"
+                >
+                  <Plus className="w-5 h-5" />
+                  Add Tool
                 </Button>
               </SheetTrigger>
-              <SheetContent side="bottom" className="h-[80vh] flex flex-col p-0">
+              <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0">
                 <SheetHeader className="p-4 border-b">
-                  <SheetTitle>Add Tools</SheetTitle>
+                  <SheetTitle>Tool Palette</SheetTitle>
                 </SheetHeader>
                 <div className="flex-1 flex flex-col overflow-hidden">
                   <ToolPaletteContent />
                 </div>
               </SheetContent>
             </Sheet>
-            
-            <Input
-              id="model-name-mobile"
-              placeholder="Model Name *"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="h-9 text-sm flex-1"
-            />
-          </div>
-
-          {/* Desktop: Full layout with name and description */}
-          <div className="hidden md:flex flex-1 gap-3 items-center">
-            <div className="flex-1 max-w-xs">
-              <Input
-                id="model-name"
-                placeholder="Model Name *"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="h-9"
-              />
-            </div>
-            <div className="flex-1 max-w-md">
-              <Input
-                id="model-description"
-                placeholder="Description (optional)"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="h-9"
-              />
-            </div>
-          </div>
-
-          {/* Action buttons - responsive */}
-          <div className="flex gap-2 flex-shrink-0">
-            <Button
-              variant="outline"
-              onClick={() => setStep('summary')}
-              disabled={!name.trim() || (narrativeTools.length === 0 && frameworkTools.length === 0 && executionTools.length === 0)}
-              size="icon"
-              className="h-9 w-9 md:w-auto md:px-3"
-            >
-              <FileText className="w-4 h-4" />
-              <span className="hidden md:inline md:ml-2">Preview</span>
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!name.trim() || createModel.isPending || updateModel.isPending}
-              size="icon"
-              className="h-9 w-9 md:w-auto md:px-3"
-            >
-              <Save className="w-4 h-4" />
-              <span className="hidden md:inline md:ml-2">
-                {createModel.isPending || updateModel.isPending ? 'Saving...' : 'Save'}
-              </span>
-            </Button>
-          </div>
+          )}
         </div>
-
-        {/* Mobile: Description field in second row */}
-        <div className="md:hidden px-3 pb-2">
-          <Input
-            id="model-description-mobile"
-            placeholder="Description (optional)"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="h-9 text-sm"
-          />
-        </div>
-      </div>
-
-      {/* Main Content Area - Responsive layout */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Desktop: Left Sidebar - Tool Palette (Pinned and Visible) */}
-        <div className="hidden md:flex w-80 lg:w-96 flex-shrink-0 border-r bg-muted/30 flex-col overflow-hidden">
-          <ToolPaletteContent />
-        </div>
-
-        {/* Workspace - Responsive: Horizontal on desktop, Vertical on mobile */}
-        <div className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full">
-            <div className="p-3 md:p-6 space-y-3 md:space-y-6">
-              {/* Narrative Zone */}
-              <div
-                data-drop-zone="narrative"
-                className={`border-2 border-dashed rounded-xl p-4 md:p-6 min-h-[200px] md:min-h-[280px] transition-all ${
-                  selectedToolToPlace
-                    ? 'border-blue-500 bg-blue-500/5 shadow-lg cursor-pointer'
-                    : 'border-border hover:border-blue-500/50'
-                }`}
-                onClick={() => selectedToolToPlace && handleZoneSelect('narrative')}
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-8 md:h-10 w-1.5 bg-blue-500 rounded-full" />
-                  <div>
-                    <h3 className="font-semibold text-base md:text-lg">Narrative Zone</h3>
-                    <p className="text-xs md:text-sm text-muted-foreground">
-                      Context & market story
-                    </p>
-                  </div>
-                </div>
-                {narrativeTools.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-32 md:h-48 text-muted-foreground border-2 border-dashed border-muted rounded-lg">
-                    <Plus className="w-8 md:w-12 h-8 md:h-12 mb-2 opacity-50" />
-                    <p className="text-xs md:text-sm font-medium text-center px-4">
-                      Select a tool, then select this zone
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-3">
-                    {narrativeTools.map((tool) => renderToolCard(tool, 'narrative'))}
-                  </div>
-                )}
-              </div>
-
-              {/* Framework Zone */}
-              <div
-                data-drop-zone="framework"
-                className={`border-2 border-dashed rounded-xl p-4 md:p-6 min-h-[200px] md:min-h-[280px] transition-all ${
-                  selectedToolToPlace
-                    ? 'border-purple-500 bg-purple-500/5 shadow-lg cursor-pointer'
-                    : 'border-border hover:border-purple-500/50'
-                }`}
-                onClick={() => selectedToolToPlace && handleZoneSelect('framework')}
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-8 md:h-10 w-1.5 bg-purple-500 rounded-full" />
-                  <div>
-                    <h3 className="font-semibold text-base md:text-lg">Framework Zone</h3>
-                    <p className="text-xs md:text-sm text-muted-foreground">
-                      Reference levels & structure
-                    </p>
-                  </div>
-                </div>
-                {frameworkTools.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-32 md:h-48 text-muted-foreground border-2 border-dashed border-muted rounded-lg">
-                    <Plus className="w-8 md:w-12 h-8 md:h-12 mb-2 opacity-50" />
-                    <p className="text-xs md:text-sm font-medium text-center px-4">
-                      Select a tool, then select this zone
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-3">
-                    {frameworkTools.map((tool) => renderToolCard(tool, 'framework'))}
-                  </div>
-                )}
-              </div>
-
-              {/* Execution Zone */}
-              <div
-                data-drop-zone="execution"
-                className={`border-2 border-dashed rounded-xl p-4 md:p-6 min-h-[200px] md:min-h-[280px] transition-all ${
-                  selectedToolToPlace
-                    ? 'border-green-500 bg-green-500/5 shadow-lg cursor-pointer'
-                    : 'border-border hover:border-green-500/50'
-                }`}
-                onClick={() => selectedToolToPlace && handleZoneSelect('execution')}
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-8 md:h-10 w-1.5 bg-green-500 rounded-full" />
-                  <div>
-                    <h3 className="font-semibold text-base md:text-lg">Execution Zone</h3>
-                    <p className="text-xs md:text-sm text-muted-foreground">
-                      Entry/exit rules & PD arrays
-                    </p>
-                  </div>
-                </div>
-                {executionTools.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-32 md:h-48 text-muted-foreground border-2 border-dashed border-muted rounded-lg">
-                    <Plus className="w-8 md:w-12 h-8 md:h-12 mb-2 opacity-50" />
-                    <p className="text-xs md:text-sm font-medium text-center px-4">
-                      Select a tool, then select this zone
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-3">
-                    {executionTools.map((tool) => renderToolCard(tool, 'execution'))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </ScrollArea>
-        </div>
-      </div>
-
-      {/* Floating Action Buttons - Mobile Only (Bottom Right) */}
-      <div className="md:hidden fixed bottom-6 right-6 z-50 flex flex-col gap-3">
-        <Button
-          onClick={() => setStep('summary')}
-          disabled={!name.trim() || (narrativeTools.length === 0 && frameworkTools.length === 0 && executionTools.length === 0)}
-          size="icon"
-          variant="secondary"
-          className="h-12 w-12 rounded-full shadow-lg"
-        >
-          <FileText className="w-5 h-5" />
-        </Button>
-        <Button
-          onClick={handleSave}
-          disabled={!name.trim() || createModel.isPending || updateModel.isPending}
-          size="icon"
-          className="h-14 w-14 rounded-full shadow-lg"
-        >
-          <Save className="w-6 h-6" />
-        </Button>
       </div>
 
       {/* Tool Config Dialog */}

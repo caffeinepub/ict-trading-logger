@@ -60,12 +60,20 @@ export const ToolConfig = IDL.Record({
   'interactions' : IDL.Vec(IDL.Text),
   'position' : IDL.Nat,
 });
+export const ExternalBlob = IDL.Vec(IDL.Nat8);
+export const ExampleImage = IDL.Record({
+  'id' : IDL.Text,
+  'blob' : ExternalBlob,
+  'description' : IDL.Text,
+  'created_at' : IDL.Int,
+});
 export const Model = IDL.Record({
   'id' : IDL.Text,
   'owner' : IDL.Principal,
   'name' : IDL.Text,
   'framework' : IDL.Vec(ToolConfig),
   'description' : IDL.Text,
+  'example_images' : IDL.Vec(ExampleImage),
   'created_at' : IDL.Int,
   'narrative' : IDL.Vec(ToolConfig),
   'execution' : IDL.Vec(ToolConfig),
@@ -115,11 +123,11 @@ export const BracketOrder = IDL.Record({
   'entry_price' : IDL.Float64,
   'value_per_unit' : IDL.Float64,
 });
-export const ExternalBlob = IDL.Vec(IDL.Nat8);
 export const Trade = IDL.Record({
   'id' : IDL.Text,
   'direction' : IDL.Text,
   'asset' : IDL.Text,
+  'close_time' : IDL.Opt(IDL.Int),
   'owner' : IDL.Principal,
   'model_conditions' : IDL.Vec(ModelCondition),
   'mood' : IDL.Text,
@@ -373,12 +381,20 @@ export const idlFactory = ({ IDL }) => {
     'interactions' : IDL.Vec(IDL.Text),
     'position' : IDL.Nat,
   });
+  const ExternalBlob = IDL.Vec(IDL.Nat8);
+  const ExampleImage = IDL.Record({
+    'id' : IDL.Text,
+    'blob' : ExternalBlob,
+    'description' : IDL.Text,
+    'created_at' : IDL.Int,
+  });
   const Model = IDL.Record({
     'id' : IDL.Text,
     'owner' : IDL.Principal,
     'name' : IDL.Text,
     'framework' : IDL.Vec(ToolConfig),
     'description' : IDL.Text,
+    'example_images' : IDL.Vec(ExampleImage),
     'created_at' : IDL.Int,
     'narrative' : IDL.Vec(ToolConfig),
     'execution' : IDL.Vec(ToolConfig),
@@ -428,11 +444,11 @@ export const idlFactory = ({ IDL }) => {
     'entry_price' : IDL.Float64,
     'value_per_unit' : IDL.Float64,
   });
-  const ExternalBlob = IDL.Vec(IDL.Nat8);
   const Trade = IDL.Record({
     'id' : IDL.Text,
     'direction' : IDL.Text,
     'asset' : IDL.Text,
+    'close_time' : IDL.Opt(IDL.Int),
     'owner' : IDL.Principal,
     'model_conditions' : IDL.Vec(ModelCondition),
     'mood' : IDL.Text,

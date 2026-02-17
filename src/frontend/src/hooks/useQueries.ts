@@ -106,6 +106,19 @@ export function useGetTrade(id: string) {
   });
 }
 
+export function useGetTradesByModel(modelId: string) {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<Trade[]>({
+    queryKey: ['trades', 'byModel', modelId],
+    queryFn: async () => {
+      if (!actor || !modelId) return [];
+      return actor.getTradesByModel(modelId);
+    },
+    enabled: !!actor && !isFetching && !!modelId,
+  });
+}
+
 export function useCreateTrade() {
   const { actor } = useActor();
   const queryClient = useQueryClient();

@@ -56,6 +56,12 @@ export interface CustomToolDefinition {
   'properties' : Array<CustomProperty>,
   'created_at' : bigint,
 }
+export interface ExampleImage {
+  'id' : string,
+  'blob' : ExternalBlob,
+  'description' : string,
+  'created_at' : bigint,
+}
 export type ExternalBlob = Uint8Array;
 export interface Model {
   'id' : string,
@@ -63,6 +69,7 @@ export interface Model {
   'name' : string,
   'framework' : Array<ToolConfig>,
   'description' : string,
+  'example_images' : Array<ExampleImage>,
   'created_at' : bigint,
   'narrative' : Array<ToolConfig>,
   'execution' : Array<ToolConfig>,
@@ -100,6 +107,7 @@ export interface Trade {
   'id' : string,
   'direction' : string,
   'asset' : string,
+  'close_time' : [] | [bigint],
   'owner' : Principal,
   'model_conditions' : Array<ModelCondition>,
   'mood' : string,

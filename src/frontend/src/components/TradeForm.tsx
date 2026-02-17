@@ -472,152 +472,127 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
 
   // Scenario Analysis
   const [scenarios, setScenarios] = useState<ScenarioOutcome[]>([]);
-  const [showScenarios, setShowScenarios] = useState(false);
 
-  const calculateScenarios = () => {
-    if (bracketGroups.length === 0 || totalPositionSize === 0) {
-      toast.error('Please configure bracket groups first');
-      return;
-    }
-
+  const calculateScenario = (scenarioDescription: string, bracketOutcomes: { bracketIndex: number; outcome: string }[]): ScenarioOutcome => {
     const entry = safeParseFloat(entryPrice);
+    const primarySL = safeParseFloat(primaryStopLoss);
     const valuePerUnitNum = safeParseFloat(valuePerUnit);
     
-    if (entry === 0 || valuePerUnitNum === 0 || !isValidNumber(entry) || !isValidNumber(valuePerUnitNum)) {
-      toast.error('Please enter valid entry price and value per unit');
-      return;
+    if (entry === 0 || primarySL === 0 || valuePerUnitNum === 0 || 
+        !isValidNumber(entry) || !isValidNumber(primarySL) || !isValidNumber(valuePerUnitNum)) {
+      return {
+        scenarioDescription,
+        bracketOutcomes,
+        totalPL: 0,
+        totalRisk: 0,
+        totalReward: 0,
+        overallRR: 0,
+        isValid: false,
+      };
     }
 
-    const newScenarios: ScenarioOutcome[] = [];
+    let totalPL = 0;
+    let totalRisk = 0;
+    let totalReward = 0;
 
-    // Scenario 1: All brackets hit TP
-    const allTPOutcomes = bracketGroups.map((bg, idx) => ({
-      bracketIndex: idx,
-      outcome: 'TP'
-    }));
-    const allTPPL = bracketGroups.reduce((sum, bg) => {
-      const distance = direction === 'long' 
-        ? bg.take_profit_price - entry 
-        : entry - bg.take_profit_price;
-      return sum + (bg.size * distance * valuePerUnitNum);
-    }, 0);
-    const allTPRisk = Math.abs(bracketGroups.reduce((sum, bg) => {
-      const distance = direction === 'long' 
-        ? bg.stop_loss_price - entry 
-        : entry - bg.stop_loss_price;
-      return sum + (bg.size * distance * valuePerUnitNum);
-    }, 0));
-    newScenarios.push({
-      scenarioDescription: 'All brackets hit Take Profit',
-      bracketOutcomes: allTPOutcomes,
-      totalPL: allTPPL,
-      totalRisk: allTPRisk,
-      totalReward: allTPPL,
-      overallRR: allTPRisk !== 0 ? allTPPL / allTPRisk : 0,
-      isValid: true
+    bracketOutcomes.forEach(({ bracketIndex, outcome }) => {
+      const bracket = bracketGroups[bracketIndex];
+      if (!bracket) return;
+
+      const size = bracket.size;
+      const tp = bracket.take_profit_price;
+      const sl = bracket.stop_loss_price;
+
+      if (outcome === 'tp') {
+        const plPerUnit = direction === 'long' ? (tp - entry) : (entry - tp);
+        const pl = plPerUnit * size * valuePerUnitNum;
+        totalPL += pl;
+        totalReward += pl;
+      } else if (outcome === 'sl') {
+        const plPerUnit = direction === 'long' ? (sl - entry) : (entry - sl);
+        const pl = plPerUnit * size * valuePerUnitNum;
+        totalPL += pl;
+        totalRisk += Math.abs(pl);
+      }
     });
 
-    // Scenario 2: All brackets hit SL
-    const allSLOutcomes = bracketGroups.map((bg, idx) => ({
-      bracketIndex: idx,
-      outcome: 'SL'
-    }));
-    const allSLPL = bracketGroups.reduce((sum, bg) => {
-      const distance = direction === 'long' 
-        ? bg.stop_loss_price - entry 
-        : entry - bg.stop_loss_price;
-      return sum + (bg.size * distance * valuePerUnitNum);
-    }, 0);
-    newScenarios.push({
-      scenarioDescription: 'All brackets hit Stop Loss',
-      bracketOutcomes: allSLOutcomes,
-      totalPL: allSLPL,
-      totalRisk: Math.abs(allSLPL),
-      totalReward: 0,
-      overallRR: allSLPL / Math.abs(allSLPL),
-      isValid: true
-    });
+    const overallRR = totalRisk !== 0 ? totalPL / totalRisk : 0;
 
-    // Scenario 3: First bracket TP, rest SL
-    if (bracketGroups.length > 1) {
-      const mixedOutcomes = bracketGroups.map((bg, idx) => ({
-        bracketIndex: idx,
-        outcome: idx === 0 ? 'TP' : 'SL'
-      }));
-      const mixedPL = bracketGroups.reduce((sum, bg, idx) => {
-        const distance = idx === 0
-          ? (direction === 'long' ? bg.take_profit_price - entry : entry - bg.take_profit_price)
-          : (direction === 'long' ? bg.stop_loss_price - entry : entry - bg.stop_loss_price);
-        return sum + (bg.size * distance * valuePerUnitNum);
-      }, 0);
-      const mixedRisk = Math.abs(bracketGroups.reduce((sum, bg) => {
-        const distance = direction === 'long' 
-          ? bg.stop_loss_price - entry 
-          : entry - bg.stop_loss_price;
-        return sum + (bg.size * distance * valuePerUnitNum);
-      }, 0));
-      newScenarios.push({
-        scenarioDescription: 'First bracket TP, rest SL',
-        bracketOutcomes: mixedOutcomes,
-        totalPL: mixedPL,
-        totalRisk: mixedRisk,
-        totalReward: mixedPL > 0 ? mixedPL : 0,
-        overallRR: mixedRisk !== 0 ? mixedPL / mixedRisk : 0,
-        isValid: true
-      });
-    }
-
-    setScenarios(newScenarios);
-    setShowScenarios(true);
-    toast.success('Scenarios calculated');
+    return {
+      scenarioDescription,
+      bracketOutcomes,
+      totalPL: isValidNumber(totalPL) ? totalPL : 0,
+      totalRisk: isValidNumber(totalRisk) ? totalRisk : 0,
+      totalReward: isValidNumber(totalReward) ? totalReward : 0,
+      overallRR: isValidNumber(overallRR) ? overallRR : 0,
+      isValid: true,
+    };
   };
 
-  const validateForm = (): ValidationError[] => {
+  const addScenario = () => {
+    const newScenario = calculateScenario(
+      `Scenario ${scenarios.length + 1}`,
+      bracketGroups.map((_, index) => ({ bracketIndex: index, outcome: 'tp' }))
+    );
+    setScenarios([...scenarios, newScenario]);
+  };
+
+  const removeScenario = (index: number) => {
+    setScenarios(scenarios.filter((_, i) => i !== index));
+  };
+
+  const updateScenarioOutcome = (scenarioIndex: number, bracketIndex: number, outcome: string) => {
+    const updatedScenarios = [...scenarios];
+    const scenario = updatedScenarios[scenarioIndex];
+    const updatedBracketOutcomes = scenario.bracketOutcomes.map((bo) =>
+      bo.bracketIndex === bracketIndex ? { ...bo, outcome } : bo
+    );
+    updatedScenarios[scenarioIndex] = calculateScenario(scenario.scenarioDescription, updatedBracketOutcomes);
+    setScenarios(updatedScenarios);
+  };
+
+  const handleSubmit = async () => {
+    // Validation
     const errors: ValidationError[] = [];
 
     if (!modelId) errors.push({ field: 'model', message: 'Please select a model' });
-    if (!asset.trim()) errors.push({ field: 'asset', message: 'Please enter an asset' });
+    if (!asset) errors.push({ field: 'asset', message: 'Please enter an asset' });
     if (!entryPrice || safeParseFloat(entryPrice) === 0) errors.push({ field: 'entryPrice', message: 'Please enter entry price' });
     if (!primaryStopLoss || safeParseFloat(primaryStopLoss) === 0) errors.push({ field: 'primaryStopLoss', message: 'Please enter primary stop-loss' });
     if (!primaryStopLossValid.valid) errors.push({ field: 'primaryStopLoss', message: primaryStopLossValid.message });
     if (bracketGroups.length === 0) errors.push({ field: 'brackets', message: 'Please add at least one bracket' });
     if (totalPositionSize === 0) errors.push({ field: 'brackets', message: 'Total position size cannot be zero' });
 
-    bracketGroups.forEach((bg, idx) => {
+    // Validate bracket groups
+    bracketGroups.forEach((bg, index) => {
       if (bg.size === 0) {
-        errors.push({ field: `bracket-${idx}`, message: `Bracket ${idx + 1}: Size cannot be zero` });
+        errors.push({ field: `bracket-${index}`, message: `Bracket ${index + 1}: Size cannot be zero` });
       }
       if (bg.take_profit_price === 0) {
-        errors.push({ field: `bracket-${idx}`, message: `Bracket ${idx + 1}: Take profit cannot be zero` });
+        errors.push({ field: `bracket-${index}`, message: `Bracket ${index + 1}: Take profit price cannot be zero` });
       }
       if (bg.stop_loss_price === 0) {
-        errors.push({ field: `bracket-${idx}`, message: `Bracket ${idx + 1}: Stop loss cannot be zero` });
+        errors.push({ field: `bracket-${index}`, message: `Bracket ${index + 1}: Stop loss price cannot be zero` });
       }
 
-      // Validate TP/SL based on direction
-      const entry = safeParseFloat(entryPrice);
+      // Validate TP/SL relationship based on direction
       if (direction === 'long') {
-        if (bg.take_profit_price <= entry) {
-          errors.push({ field: `bracket-${idx}`, message: `Bracket ${idx + 1}: TP must be above entry for long trades` });
+        if (bg.take_profit_price <= safeParseFloat(entryPrice)) {
+          errors.push({ field: `bracket-${index}`, message: `Bracket ${index + 1}: For long trades, take profit must be above entry` });
         }
-        if (bg.stop_loss_price >= entry) {
-          errors.push({ field: `bracket-${idx}`, message: `Bracket ${idx + 1}: SL must be below entry for long trades` });
+        if (bg.stop_loss_price >= safeParseFloat(entryPrice)) {
+          errors.push({ field: `bracket-${index}`, message: `Bracket ${index + 1}: For long trades, stop loss must be below entry` });
         }
       } else {
-        if (bg.take_profit_price >= entry) {
-          errors.push({ field: `bracket-${idx}`, message: `Bracket ${idx + 1}: TP must be below entry for short trades` });
+        if (bg.take_profit_price >= safeParseFloat(entryPrice)) {
+          errors.push({ field: `bracket-${index}`, message: `Bracket ${index + 1}: For short trades, take profit must be below entry` });
         }
-        if (bg.stop_loss_price <= entry) {
-          errors.push({ field: `bracket-${idx}`, message: `Bracket ${idx + 1}: SL must be above entry for short trades` });
+        if (bg.stop_loss_price <= safeParseFloat(entryPrice)) {
+          errors.push({ field: `bracket-${index}`, message: `Bracket ${index + 1}: For short trades, stop loss must be above entry` });
         }
       }
     });
 
-    return errors;
-  };
-
-  const handleSubmit = async () => {
-    const errors = validateForm();
     if (errors.length > 0) {
       toast.error(errors[0].message);
       return;
@@ -653,7 +628,7 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
       id: trade?.id || crypto.randomUUID(),
       owner: identity.getPrincipal(),
       model_id: modelId,
-      asset: asset.trim(),
+      asset,
       direction,
       bracket_order: bracketOrder,
       bracket_order_outcomes: trade?.bracket_order_outcomes || [],
@@ -663,7 +638,7 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
       quickTags: trade?.quickTags || [],
       mistakeTags: trade?.mistakeTags || [],
       strengthTags: trade?.strengthTags || [],
-      created_at: trade?.created_at || BigInt(currentTime || Date.now() * 1000000),
+      created_at: trade?.created_at || BigInt(date.getTime() * 1000000),
       calculation_method: calculationMethod === 'tick' ? CalculationMethod.tick : CalculationMethod.point,
       value_per_unit: safeParseFloat(valuePerUnit),
       model_conditions: modelConditions,
@@ -671,23 +646,23 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
       is_completed: trade?.is_completed || false,
       position_sizer: positionSizer,
       would_take_again: trade?.would_take_again || false,
+      close_time: trade?.close_time || undefined,
     };
 
     try {
       if (trade) {
         await updateTrade.mutateAsync(tradeData);
-        toast.success('Trade updated successfully');
+        toast.success('Trade updated successfully!');
       } else {
         await createTrade.mutateAsync(tradeData);
-        toast.success('Trade created successfully');
+        toast.success('Trade created successfully!');
       }
       onClose();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to save trade');
+      toast.error(error?.message || 'Failed to save trade');
+      console.error(error);
     }
   };
-
-  const selectedModel = models.find(m => m.id === modelId);
 
   return (
     <div className="trade-form-inline space-y-6 w-full max-w-full overflow-x-hidden">
@@ -695,7 +670,7 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
       <Card className="w-full">
         <CardHeader>
           <CardTitle>Trade Information</CardTitle>
-          <CardDescription>Basic trade details and market context</CardDescription>
+          <CardDescription>Basic details about your trade</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -706,7 +681,7 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
                   <SelectValue placeholder="Select a model" />
                 </SelectTrigger>
                 <SelectContent>
-                  {models.map(model => (
+                  {models.map((model) => (
                     <SelectItem key={model.id} value={model.id}>
                       {model.name}
                     </SelectItem>
@@ -735,7 +710,7 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} />
+                  <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus />
                 </PopoverContent>
               </Popover>
             </div>
@@ -746,11 +721,15 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="long" id="long" />
-                    <Label htmlFor="long">Long</Label>
+                    <Label htmlFor="long" className="font-normal cursor-pointer">
+                      Long
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="short" id="short" />
-                    <Label htmlFor="short">Short</Label>
+                    <Label htmlFor="short" className="font-normal cursor-pointer">
+                      Short
+                    </Label>
                   </div>
                 </div>
               </RadioGroup>
@@ -764,15 +743,13 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
         <Card className="w-full">
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div>
+              <div className="min-w-0 flex-1">
                 <CardTitle>Model Adherence</CardTitle>
-                <CardDescription>Check the conditions you observed in the market</CardDescription>
+                <CardDescription>Check the conditions you observed</CardDescription>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={adherenceScore >= 80 ? 'default' : adherenceScore >= 50 ? 'secondary' : 'destructive'}>
-                  {adherenceScore.toFixed(0)}% Adherence
-                </Badge>
-              </div>
+              <Badge variant="outline" className="text-lg px-3 py-1 shrink-0">
+                {adherenceScore.toFixed(0)}%
+              </Badge>
             </div>
           </CardHeader>
           <CardContent>
@@ -788,40 +765,28 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
                 <AlertDescription>Failed to load model conditions</AlertDescription>
               </Alert>
             ) : modelConditions.length === 0 ? (
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertDescription>
-                  This model has no conditions defined. Add tools to your model to enable adherence tracking.
-                </AlertDescription>
-              </Alert>
+              <p className="text-sm text-muted-foreground">No conditions defined for this model</p>
             ) : (
-              <ScrollArea className="h-[300px] w-full pr-4">
+              <ScrollArea className="h-[300px] pr-4">
                 <div className="space-y-3">
-                  {['narrative', 'framework', 'execution'].map(zone => {
-                    const zoneConditions = modelConditions.filter(c => c.zone === zone);
-                    if (zoneConditions.length === 0) return null;
-
-                    return (
-                      <div key={zone} className="space-y-2">
-                        <h4 className="font-semibold text-sm capitalize">{zone}</h4>
-                        {zoneConditions.map(condition => (
-                          <div key={condition.id} className="flex items-start space-x-2 p-2 rounded-lg hover:bg-accent">
-                            <Checkbox
-                              id={condition.id}
-                              checked={condition.isChecked}
-                              onCheckedChange={() => toggleCondition(condition.id)}
-                            />
-                            <Label
-                              htmlFor={condition.id}
-                              className="text-sm font-normal cursor-pointer flex-1 leading-relaxed"
-                            >
-                              {condition.description}
-                            </Label>
-                          </div>
-                        ))}
+                  {modelConditions.map((condition) => (
+                    <div key={condition.id} className="flex items-start space-x-3 p-3 rounded-lg border">
+                      <Checkbox
+                        id={condition.id}
+                        checked={condition.isChecked}
+                        onCheckedChange={() => toggleCondition(condition.id)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <Label htmlFor={condition.id} className="text-sm font-medium cursor-pointer break-words">
+                          {condition.description}
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Zone: {condition.zone}
+                        </p>
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
               </ScrollArea>
             )}
@@ -836,7 +801,7 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
       <Card className="w-full">
         <CardHeader>
           <CardTitle>Position Sizing</CardTitle>
-          <CardDescription>Calculate your position size based on risk parameters</CardDescription>
+          <CardDescription>Calculate your position size based on risk</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -847,7 +812,11 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
                 type="text"
                 placeholder="0.00"
                 value={entryPrice}
-                onChange={(e) => isValidNumericInput(e.target.value) && setEntryPrice(e.target.value)}
+                onChange={(e) => {
+                  if (isValidNumericInput(e.target.value)) {
+                    setEntryPrice(e.target.value);
+                  }
+                }}
               />
             </div>
 
@@ -858,7 +827,11 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
                 type="text"
                 placeholder="0.00"
                 value={primaryStopLoss}
-                onChange={(e) => isValidNumericInput(e.target.value) && setPrimaryStopLoss(e.target.value)}
+                onChange={(e) => {
+                  if (isValidNumericInput(e.target.value)) {
+                    setPrimaryStopLoss(e.target.value);
+                  }
+                }}
                 className={!primaryStopLossValid.valid ? 'border-destructive' : ''}
               />
               {!primaryStopLossValid.valid && (
@@ -873,17 +846,23 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
                 type="text"
                 placeholder="10000"
                 value={accountCapital}
-                onChange={(e) => isValidNumericInput(e.target.value) && setAccountCapital(e.target.value)}
+                onChange={(e) => {
+                  if (isValidNumericInput(e.target.value)) {
+                    setAccountCapital(e.target.value);
+                  }
+                }}
               />
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="risk-percent">Risk</Label>
+                <Label htmlFor="risk-percent">Risk %</Label>
                 <div className="flex items-center space-x-2">
-                  <Label htmlFor="use-dollar" className="text-xs">Use $</Label>
+                  <Label htmlFor="use-risk-dollar" className="text-xs text-muted-foreground">
+                    Use $
+                  </Label>
                   <Switch
-                    id="use-dollar"
+                    id="use-risk-dollar"
                     checked={useRiskDollar}
                     onCheckedChange={setUseRiskDollar}
                   />
@@ -895,7 +874,11 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
                   type="text"
                   placeholder="100"
                   value={riskDollar}
-                  onChange={(e) => isValidNumericInput(e.target.value) && setRiskDollar(e.target.value)}
+                  onChange={(e) => {
+                    if (isValidNumericInput(e.target.value)) {
+                      setRiskDollar(e.target.value);
+                    }
+                  }}
                 />
               ) : (
                 <Input
@@ -903,7 +886,11 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
                   type="text"
                   placeholder="1"
                   value={riskPercent}
-                  onChange={(e) => isValidNumericInput(e.target.value) && setRiskPercent(e.target.value)}
+                  onChange={(e) => {
+                    if (isValidNumericInput(e.target.value)) {
+                      setRiskPercent(e.target.value);
+                    }
+                  }}
                 />
               )}
             </div>
@@ -924,9 +911,9 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="contract-unit">Contract/Lot Unit</Label>
+              <Label htmlFor="contract-lot-unit">Contract/Lot Unit</Label>
               <Input
-                id="contract-unit"
+                id="contract-lot-unit"
                 placeholder="contract"
                 value={contractLotUnit}
                 onChange={(e) => setContractLotUnit(e.target.value)}
@@ -953,17 +940,21 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
                 type="text"
                 placeholder="5"
                 value={valuePerUnit}
-                onChange={(e) => isValidNumericInput(e.target.value) && setValuePerUnit(e.target.value)}
+                onChange={(e) => {
+                  if (isValidNumericInput(e.target.value)) {
+                    setValuePerUnit(e.target.value);
+                  }
+                }}
               />
             </div>
           </div>
 
           {assetType === 'futures' && (
             <div className="flex items-center space-x-2">
-              <Checkbox
+              <Switch
                 id="allow-fractional"
                 checked={allowFractional}
-                onCheckedChange={(checked) => setAllowFractional(checked === true)}
+                onCheckedChange={setAllowFractional}
               />
               <Label htmlFor="allow-fractional" className="text-sm">
                 Allow fractional contracts
@@ -976,7 +967,9 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
           <div className="bg-muted p-4 rounded-lg space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Calculated Position Size:</span>
-              <span className="text-lg font-bold">{calculatedPositionSize.toFixed(assetType === 'crypto' ? 8 : 2)}</span>
+              <span className="text-lg font-bold">
+                {calculatedPositionSize.toFixed(assetType === 'crypto' ? 8 : 2)} {contractLotUnit}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Risk Amount:</span>
@@ -990,109 +983,83 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
       <Card className="w-full">
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div>
+            <div className="min-w-0 flex-1">
               <CardTitle>Bracket Configuration</CardTitle>
-              <CardDescription>Define your OCO bracket orders</CardDescription>
+              <CardDescription>Define your take-profit and stop-loss brackets</CardDescription>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={populateBracketSizes}
-                      disabled={calculatedPositionSize === 0}
-                    >
-                      <Calculator className="w-4 h-4 mr-2" />
-                      Populate Sizes
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Distribute calculated position size evenly across brackets</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <Button variant="outline" size="sm" onClick={addBracketGroup}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Bracket
-              </Button>
-            </div>
+            <Button onClick={populateBracketSizes} variant="outline" size="sm" className="gap-2 shrink-0">
+              <Calculator className="w-4 h-4" />
+              Populate Sizes
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {bracketGroups.map((group, index) => (
-            <div key={group.bracket_id} className="space-y-3 p-4 border rounded-lg">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold">Bracket {index + 1}</h4>
-                {bracketGroups.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeBracketGroup(index)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor={`size-${index}`}>Size</Label>
-                  <Input
-                    id={`size-${index}`}
-                    type="text"
-                    placeholder="0"
-                    value={group.size || ''}
-                    onChange={(e) => updateBracketGroup(index, 'size', e.target.value)}
-                  />
+          <div className="space-y-4">
+            {bracketGroups.map((group, index) => (
+              <div key={group.bracket_id} className="p-4 border rounded-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold">Bracket {index + 1}</h4>
+                  {bracketGroups.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeBracketGroup(index)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`tp-${index}`}>Take Profit</Label>
-                  <Input
-                    id={`tp-${index}`}
-                    type="text"
-                    placeholder="0.00"
-                    value={group.take_profit_price || ''}
-                    onChange={(e) => updateBracketGroup(index, 'take_profit_price', e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor={`sl-${index}`}>Stop Loss</Label>
-                    {group.sl_modified_by_user && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge variant="outline" className="text-xs">Custom</Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Manually modified (won't sync with Primary SL)</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor={`bracket-${index}-size`}>Size</Label>
+                    <Input
+                      id={`bracket-${index}-size`}
+                      type="text"
+                      placeholder="0"
+                      value={group.size === 0 ? '' : group.size.toString()}
+                      onChange={(e) => updateBracketGroup(index, 'size', e.target.value)}
+                    />
                   </div>
-                  <Input
-                    id={`sl-${index}`}
-                    type="text"
-                    placeholder="0.00"
-                    value={group.stop_loss_price || ''}
-                    onChange={(e) => updateBracketGroup(index, 'stop_loss_price', e.target.value)}
-                  />
+
+                  <div className="space-y-2">
+                    <Label htmlFor={`bracket-${index}-tp`}>Take Profit</Label>
+                    <Input
+                      id={`bracket-${index}-tp`}
+                      type="text"
+                      placeholder="0.00"
+                      value={group.take_profit_price === 0 ? '' : group.take_profit_price.toString()}
+                      onChange={(e) => updateBracketGroup(index, 'take_profit_price', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor={`bracket-${index}-sl`}>Stop Loss</Label>
+                    <Input
+                      id={`bracket-${index}-sl`}
+                      type="text"
+                      placeholder="0.00"
+                      value={group.stop_loss_price === 0 ? '' : group.stop_loss_price.toString()}
+                      onChange={(e) => updateBracketGroup(index, 'stop_loss_price', e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
 
-          <Separator />
+          <Button onClick={addBracketGroup} variant="outline" className="w-full gap-2">
+            <Plus className="w-4 h-4" />
+            Add Bracket
+          </Button>
 
           <div className="bg-muted p-4 rounded-lg">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Total Position Size:</span>
-              <span className="text-lg font-bold">{totalPositionSize.toFixed(assetType === 'crypto' ? 8 : 2)}</span>
+              <span className="text-lg font-bold">
+                {totalPositionSize.toFixed(assetType === 'crypto' ? 8 : 2)} {contractLotUnit}
+              </span>
             </div>
           </div>
         </CardContent>
@@ -1102,35 +1069,70 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
       <Card className="w-full">
         <CardHeader>
           <CardTitle>Scenario Analysis</CardTitle>
-          <CardDescription>Analyze potential outcomes before entering the trade</CardDescription>
+          <CardDescription>Model different outcome scenarios</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button variant="outline" onClick={calculateScenarios} className="w-full">
-            <Calculator className="w-4 h-4 mr-2" />
-            Calculate Scenarios
-          </Button>
-
-          {showScenarios && scenarios.length > 0 && (
-            <div className="space-y-3">
-              {scenarios.map((scenario, idx) => (
-                <div key={idx} className="p-4 border rounded-lg space-y-2">
-                  <h4 className="font-semibold text-sm">{scenario.scenarioDescription}</h4>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">P/L:</span>
-                      <span className={`ml-2 font-semibold ${scenario.totalPL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        ${scenario.totalPL.toFixed(2)}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">R:R:</span>
-                      <span className="ml-2 font-semibold">{scenario.overallRR.toFixed(2)}R</span>
-                    </div>
+          {scenarios.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No scenarios added yet</p>
+          ) : (
+            <div className="space-y-4">
+              {scenarios.map((scenario, scenarioIndex) => (
+                <div key={scenarioIndex} className="p-4 border rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold">{scenario.scenarioDescription}</h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeScenario(scenarioIndex)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {scenario.bracketOutcomes.map(({ bracketIndex, outcome }) => (
+                      <div key={bracketIndex} className="space-y-2">
+                        <Label className="text-xs">Bracket {bracketIndex + 1}</Label>
+                        <Select
+                          value={outcome}
+                          onValueChange={(v) => updateScenarioOutcome(scenarioIndex, bracketIndex, v)}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="tp">TP</SelectItem>
+                            <SelectItem value="sl">SL</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
+
+                  {scenario.isValid && (
+                    <div className="bg-muted p-3 rounded-lg space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Total P/L:</span>
+                        <span className={`font-semibold ${scenario.totalPL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          ${scenario.totalPL.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span>R:R Ratio:</span>
+                        <span className="font-semibold">{scenario.overallRR.toFixed(2)}R</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
+
+          <Button onClick={addScenario} variant="outline" className="w-full gap-2">
+            <Plus className="w-4 h-4" />
+            Add Scenario
+          </Button>
         </CardContent>
       </Card>
 
@@ -1144,7 +1146,11 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
           disabled={createTrade.isPending || updateTrade.isPending}
           className="w-full sm:w-auto"
         >
-          {createTrade.isPending || updateTrade.isPending ? 'Saving...' : trade ? 'Update Trade' : 'Create Trade'}
+          {createTrade.isPending || updateTrade.isPending
+            ? 'Saving...'
+            : trade
+            ? 'Update Trade'
+            : 'Create Trade'}
         </Button>
       </div>
     </div>

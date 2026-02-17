@@ -5,9 +5,12 @@ import { Plus, TrendingUp, TrendingDown, DollarSign, Target, Award } from 'lucid
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { Trade } from '../backend';
 import { computeTradePLFromOutcomes, computeTradeRRFromOutcomes, isTradeWinner, isTradeLoser } from '../utils/trade/tradeMetrics';
+import { useMemo } from 'react';
+import { aggregateTradesByDay, getCurrentWeekDays } from '../utils/trade/tradeCalendar';
+import TradeCalendarWeek from '../components/trade-calendar/TradeCalendarWeek';
 
 interface DashboardProps {
-  onNavigate: (page: 'models' | 'trades') => void;
+  onNavigate: (page: 'models' | 'trades' | 'analytics') => void;
 }
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
@@ -65,6 +68,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   });
 
   const topModels = modelPerformance.sort((a, b) => b.pl - a.pl).slice(0, 3);
+
+  // Weekly calendar data
+  const dayAggregates = useMemo(() => aggregateTradesByDay(trades), [trades]);
+  const weekDays = useMemo(() => getCurrentWeekDays(dayAggregates), [dayAggregates]);
 
   if (isLoading) {
     return (
@@ -152,6 +159,20 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Weekly Calendar Widget */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Weekly Summary</CardTitle>
+          <CardDescription>Your trading activity for the current week</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TradeCalendarWeek
+            weekDays={weekDays}
+            onViewFullCalendar={() => onNavigate('analytics')}
+          />
+        </CardContent>
+      </Card>
 
       {/* Equity Curve */}
       {equityCurve.length > 0 && (

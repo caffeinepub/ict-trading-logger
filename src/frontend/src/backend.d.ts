@@ -14,6 +14,13 @@ export class ExternalBlob {
     static fromBytes(blob: Uint8Array<ArrayBuffer>): ExternalBlob;
     withUploadProgress(onProgress: (percentage: number) => void): ExternalBlob;
 }
+export interface CustomProperty {
+    id: string;
+    type: PropertyType;
+    propertyLabel: string;
+    options: Array<string>;
+    default_value: string;
+}
 export interface BracketOrder {
     bracket_groups: Array<BracketGroup>;
     primary_stop_loss: number;
@@ -27,6 +34,7 @@ export interface Trade {
     id: string;
     direction: string;
     asset: string;
+    close_time?: bigint;
     owner: Principal;
     model_conditions: Array<ModelCondition>;
     mood: string;
@@ -101,16 +109,16 @@ export interface Model {
     name: string;
     framework: Array<ToolConfig>;
     description: string;
+    example_images: Array<ExampleImage>;
     created_at: bigint;
     narrative: Array<ToolConfig>;
     execution: Array<ToolConfig>;
 }
-export interface CustomProperty {
+export interface ExampleImage {
     id: string;
-    type: PropertyType;
-    propertyLabel: string;
-    options: Array<string>;
-    default_value: string;
+    blob: ExternalBlob;
+    description: string;
+    created_at: bigint;
 }
 export interface UserProfile {
     name: string;

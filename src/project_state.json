@@ -1,29 +1,24 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "ICT-focused trading journal whose main goal is validating trade models, with planned monetization via a hybrid subscription model (free tier + Pro/Elite).",
-  "architectural_notes": [
-    "Use blob storage for screenshot uploads/attachments (Advanced Notes).",
-    "Defer voice notes; screenshots only for now.",
-    "Comparison tool date ranges should support predefined ranges: week, month, custom input.",
-    "Dashboard layout implementation choice left to developer discretion (grid vs reorderable list), but must support per-user saved layouts."
-  ],
+  "summary": "New project",
+  "architectural_notes": [],
   "known_issues": [
-    "Build/deploy attempt failed with error: \"AI couldn't process your request successfully. Try simplifying or rewording it.\""
+    "On mobile in the model builder, the tool palette button is not visible while scrolling through zones, making it hard to add tools."
   ],
-  "isFixRequest": false,
+  "isFixRequest": true,
   "existing_features": [
     {
-      "id": "feature-implement-an-advanced-notes-enhancement-for-trades-by-extending-the-existing-trade-reflection-data-to-support-a-quick-tags-multi-value-text-tags-and-b-categorized-mistake-strength-labels-multi-value-two-distinct-categories-while-keeping-existing-fields-notes-text-mood-images-intact",
-      "title": "Implement an Advanced Notes enhancement for trades by extending the existing trade reflection data to support: (a) quick tags (multi-value text tags), and (b) categorized mistake/strength labels (multi-value, two distinct categories), while keeping existing fields (notes text, mood, images) intact.",
+      "id": "feature-update-the-model-builder-mobile-layout-so-the-tool-palette-access-button-remains-visible-and-tappable-while-the-user-scrolls-through-the-narrative-framework-execution-zones-e-g-by-making-the-tool-palette-trigger-sticky-or-a-floating-action-button",
+      "title": "Update the Model Builder mobile layout so the Tool Palette access button remains visible and tappable while the user scrolls through the Narrative / Framework / Execution zones (e.g., by making the Tool Palette trigger sticky or a floating action button).",
       "reqIds": [
         "REQ-1"
       ],
       "version": 1
     },
     {
-      "id": "feature-replace-the-current-screenshot-handling-that-stores-images-as-data-urls-in-the-frontend-with-true-blob-storage-in-the-backend-canister-using-stable-references-ids-urls-stored-on-the-trade-images-field-restrict-the-scope-to-screenshots-only-no-voice-notes",
-      "title": "Replace the current screenshot handling that stores images as data URLs in the frontend with true blob storage in the backend canister, using stable references (IDs/URLs) stored on the Trade.images field; restrict the scope to screenshots only (no voice notes).",
+      "id": "feature-ensure-the-always-accessible-tool-palette-trigger-visually-indicates-when-a-tool-is-currently-selected-for-placement-and-provide-an-always-accessible-way-to-cancel-placement-mode-on-mobile-when-a-tool-is-selected",
+      "title": "Ensure the always-accessible Tool Palette trigger visually indicates when a tool is currently selected for placement, and provide an always-accessible way to cancel placement mode on mobile when a tool is selected.",
       "reqIds": [
         "REQ-2"
       ],
@@ -33,68 +28,12 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Customizable analytics dashboard with user-configurable KPIs/charts, drag/drop ordering, hide/show toggles, and per-user saved layouts integrated with adherence/model performance/P&L/scenarios",
+      "summary": "Improve mobile model builder UX by keeping the tool palette button always accessible (e.g., make it sticky while scrolling through zones)",
       "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-2",
-      "summary": "Calendar month-grid view showing per-day P/L, adherence score, model used, tags, and notes; days clickable to open trades; integrates with notes/screenshots",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-3",
-      "summary": "Side-by-side comparison tools to compare models/sessions/setups/adherence levels/date ranges with mirrored KPIs/charts using the same analytics engine; supports predefined ranges (week/month/custom)",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-4",
-      "summary": "Advanced notes system for each trade: screenshots (via blob storage) plus quick tags and categorized mistake/strength labels; notes visible in trade detail/calendar/comparison and feed analytics filters/breakdowns",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-5",
-      "summary": "Monetization: hybrid subscription with free tier plus Pro/Elite paid tiers (freemium + tiered plans)",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-8",
-      "summary": "Add a Calendar month-grid view that aggregates trades per day and shows, for each day: total P/L, an adherence score summary, model used summary, tags summary, and notes indicator; days must be clickable to open the full list of trades for that date and allow navigation to trade details.",
-      "reqIds": [
-        "REQ-3"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-9",
-      "summary": "Add a Side-by-Side Comparison feature that allows users to compare two datasets: (a) two models, (b) two sessions, (c) two setups (as represented by models), (d) two adherence levels, or (e) two date ranges; provide predefined date range options (week, month) plus a custom start/end input; results must reuse the existing analytics computation utilities and display mirrored KPIs/charts/stat blocks.",
-      "reqIds": [
-        "REQ-4"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-10",
-      "summary": "Implement a Customizable Analytics Dashboard that lets users choose which KPI/chart modules appear on the analytics home, supports reorder (drag-and-drop or equivalent), hide/show toggles, and persists the layout per user in the backend; the modules must be powered by the existing analytics calculations (adherence, bracket outcomes, model performance, P/L, scenario-related fields already present in trades).",
-      "reqIds": [
-        "REQ-5"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-11",
-      "summary": "Create a coherent, distinctive visual theme and apply it consistently across the new Calendar, Comparison, and Dashboard customization UI (colors, typography, spacing, card styles), ensuring a polished look and clear information hierarchy without using a blue/purple-dominant palette.",
-      "reqIds": [
-        "REQ-6"
-      ],
       "status": "pending"
     }
   ],
-  "projectName": "Add Calendar view, dashboard customization, comparison tools, and advanced notes (screenshots-only)",
+  "projectName": "Make Model Builder Tool Palette button always accessible on mobile while scrolling zones",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

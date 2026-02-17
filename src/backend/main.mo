@@ -11,10 +11,11 @@ import Float "mo:base/Float";
 import Array "mo:base/Array";
 import Nat "mo:base/Nat";
 import Int "mo:base/Int";
-import Migration "migration"; // Import migration module
 
-// Specify the data migration function in with-clause
-(with migration = Migration.run)
+
+
+// Apply content migration
+
 actor {
   // Initialize the user system state
   let accessControlState = AccessControl.initState();
@@ -108,6 +109,14 @@ actor {
     position : Nat;
   };
 
+  // New ExampleImage type
+  public type ExampleImage = {
+    id : Text;
+    blob : Storage.ExternalBlob;
+    description : Text;
+    created_at : Int;
+  };
+
   public type Model = {
     id : Text;
     owner : Principal;
@@ -116,6 +125,7 @@ actor {
     narrative : [ToolConfig];
     framework : [ToolConfig];
     execution : [ToolConfig];
+    example_images : [ExampleImage]; // New field for example images
     created_at : Int;
   };
 
@@ -192,10 +202,10 @@ actor {
     asset : Text;
     direction : Text;
     bracket_order : BracketOrder;
-    bracket_order_outcomes : [BracketOrderOutcome]; // New field for per-bracket outcomes
+    bracket_order_outcomes : [BracketOrderOutcome];
     notes : Text;
-    mood : Text; // Now single mood field
-    images : [Storage.ExternalBlob]; // Changed to Storage.ExternalBlob
+    mood : Text;
+    images : [Storage.ExternalBlob];
     quickTags : [Text];
     mistakeTags : [Text];
     strengthTags : [Text];
@@ -206,7 +216,8 @@ actor {
     adherence_score : Float;
     is_completed : Bool;
     position_sizer : PositionSizer;
-    would_take_again : Bool; // New field for "Would you take this trade again?"
+    would_take_again : Bool;
+    close_time : ?Int;
   };
 
   // Custom Tool Types
@@ -675,6 +686,7 @@ actor {
               is_completed = true;
               position_sizer = trade.position_sizer;
               would_take_again = trade.would_take_again;
+              close_time = ?Time.now();
             };
 
             trades := textMap.put(trades, trade_id, updatedTrade);

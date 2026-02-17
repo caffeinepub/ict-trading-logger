@@ -21,6 +21,10 @@ import { computeHourBuckets, computeWeekdayBuckets } from '../utils/analytics/ti
 import { computeToolImpact } from '../utils/analytics/toolImpact';
 import { computeVolatilityMetrics } from '../utils/analytics/volatility';
 import { runMonteCarloSimulation } from '../utils/analytics/monteCarlo';
+import { aggregateTradesByDay, getMonthCalendarGrid } from '../utils/trade/tradeCalendar';
+import TradeCalendarMonth from '../components/trade-calendar/TradeCalendarMonth';
+import TradeDayDrilldownDialog from '../components/trade-calendar/TradeDayDrilldownDialog';
+import type { CalendarDay, DayAggregates } from '../utils/trade/tradeCalendar';
 
 export default function Analytics() {
   const { data: models = [], isLoading: modelsLoading } = useGetAllModels();
@@ -30,6 +34,13 @@ export default function Analytics() {
   const [selectedSession, setSelectedSession] = useState<Session>('All');
   const [adherenceFilterEnabled, setAdherenceFilterEnabled] = useState(false);
   const [adherenceThreshold, setAdherenceThreshold] = useState(80);
+
+  // Calendar state
+  const today = new Date();
+  const [calendarYear, setCalendarYear] = useState(today.getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
+  const [selectedDay, setSelectedDay] = useState<DayAggregates | null>(null);
+  const [drilldownOpen, setDrilldownOpen] = useState(false);
 
   const isLoading = modelsLoading || tradesLoading;
 
@@ -58,6 +69,49 @@ export default function Analytics() {
   const toolImpact = useMemo(() => computeToolImpact(filteredTrades, models), [filteredTrades, models]);
   const volatilityMetrics = useMemo(() => computeVolatilityMetrics(filteredTrades), [filteredTrades]);
   const monteCarloResult = useMemo(() => runMonteCarloSimulation(filteredTrades), [filteredTrades]);
+
+  // Calendar data
+  const dayAggregates = useMemo(() => aggregateTradesByDay(trades), [trades]);
+  const calendarDays = useMemo(
+    () => getMonthCalendarGrid(calendarYear, calendarMonth, dayAggregates),
+    [calendarYear, calendarMonth, dayAggregates]
+  );
+
+  // Transform bracket metrics for chart display
+  const bracketChartData = useMemo(() => 
+    bracketMetrics.map(b => ({
+      bracket: `Bracket ${b.bracketIndex + 1}`,
+      tpHitRate: b.tpHitRate,
+      slHitRate: b.slHitRate,
+      avgRealizedR: b.avgRealizedR,
+    })),
+    [bracketMetrics]
+  );
+
+  const handleDayClick = (day: CalendarDay) => {
+    if (day.aggregates && day.aggregates.tradeCount > 0) {
+      setSelectedDay(day.aggregates);
+      setDrilldownOpen(true);
+    }
+  };
+
+  const handlePrevMonth = () => {
+    if (calendarMonth === 0) {
+      setCalendarMonth(11);
+      setCalendarYear(calendarYear - 1);
+    } else {
+      setCalendarMonth(calendarMonth - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (calendarMonth === 11) {
+      setCalendarMonth(0);
+      setCalendarYear(calendarYear + 1);
+    } else {
+      setCalendarMonth(calendarMonth + 1);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -155,9 +209,10 @@ export default function Analytics() {
         </Card>
       ) : (
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-10 lg:w-auto">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="equity">Equity</TabsTrigger>
+            <TabsTrigger value="calendar">Calendar</TabsTrigger>
             <TabsTrigger value="sessions">Sessions</TabsTrigger>
             <TabsTrigger value="adherence">Adherence</TabsTrigger>
             <TabsTrigger value="brackets">Brackets</TabsTrigger>
@@ -327,6 +382,31 @@ export default function Analytics() {
             </div>
           </TabsContent>
 
+          {/* Calendar Tab */}
+          <TabsContent value="calendar" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Trade Calendar
+                </CardTitle>
+                <CardDescription>
+                  Daily aggregated performance metrics. Click a day to view detailed trade information.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TradeCalendarMonth
+                  year={calendarYear}
+                  month={calendarMonth}
+                  calendarDays={calendarDays}
+                  onDayClick={handleDayClick}
+                  onPrevMonth={handlePrevMonth}
+                  onNextMonth={handleNextMonth}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Sessions Tab */}
           <TabsContent value="sessions" className="space-y-6">
             <Card>
@@ -389,116 +469,116 @@ export default function Analytics() {
 
           {/* Adherence Tab */}
           <TabsContent value="adherence" className="space-y-6">
-            {adherenceFilterEnabled && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Adherence Filter Comparison</CardTitle>
-                  <CardDescription>
-                    Comparing trades with adherence ≥ {adherenceThreshold}% vs all trades
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">Filtered (≥{adherenceThreshold}%)</p>
-                      <div className="space-y-1">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Trades</span>
-                          <span className="font-medium">{adherenceComparison.filteredTrades}</span>
+            <Card>
+              <CardHeader>
+                <CardTitle>Adherence Impact</CardTitle>
+                <CardDescription>
+                  Comparing trades with adherence ≥ {adherenceThreshold}% vs all trades
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">High Adherence (≥{adherenceThreshold}%)</p>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Trades</span>
+                          <Badge variant="outline">{adherenceComparison.filteredTrades}</Badge>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Win Rate</span>
-                          <span className="font-medium">{adherenceComparison.filteredWinRate.toFixed(1)}%</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Win Rate</span>
+                          <span className="font-bold">{adherenceComparison.filteredWinRate.toFixed(1)}%</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Total P/L</span>
-                          <span className={`font-medium ${adherenceComparison.filteredPL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Total P/L</span>
+                          <span className={`font-bold ${adherenceComparison.filteredPL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                             ${adherenceComparison.filteredPL.toFixed(2)}
                           </span>
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">All Trades</p>
-                      <div className="space-y-1">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Trades</span>
-                          <span className="font-medium">{adherenceComparison.allTrades}</span>
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">All Trades</p>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Trades</span>
+                          <Badge variant="outline">{adherenceComparison.allTrades}</Badge>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Win Rate</span>
-                          <span className="font-medium">{adherenceComparison.allWinRate.toFixed(1)}%</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Win Rate</span>
+                          <span className="font-bold">{adherenceComparison.allWinRate.toFixed(1)}%</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Total P/L</span>
-                          <span className={`font-medium ${adherenceComparison.allPL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Total P/L</span>
+                          <span className={`font-bold ${adherenceComparison.allPL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                             ${adherenceComparison.allPL.toFixed(2)}
                           </span>
                         </div>
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  <div className="mt-4 pt-4 border-t">
-                    <p className="text-sm font-medium mb-2">Difference</p>
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Win Rate Delta</span>
-                        <span className={`font-medium ${adherenceComparison.winRateDelta >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {adherenceComparison.winRateDelta >= 0 ? '+' : ''}{adherenceComparison.winRateDelta.toFixed(1)}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">P/L Delta</span>
-                        <span className={`font-medium ${adherenceComparison.plDelta >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {adherenceComparison.plDelta >= 0 ? '+' : ''}${adherenceComparison.plDelta.toFixed(2)}
-                        </span>
-                      </div>
+                <div className="mt-6 pt-6 border-t border-border">
+                  <p className="text-sm font-medium mb-4">Impact Delta</p>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                      <span className="text-sm">Win Rate Difference</span>
+                      <span className={`font-bold ${adherenceComparison.winRateDelta >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {adherenceComparison.winRateDelta >= 0 ? '+' : ''}{adherenceComparison.winRateDelta.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                      <span className="text-sm">P/L Difference</span>
+                      <span className={`font-bold ${adherenceComparison.plDelta >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {adherenceComparison.plDelta >= 0 ? '+' : ''}${adherenceComparison.plDelta.toFixed(2)}
+                      </span>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Brackets Tab */}
           <TabsContent value="brackets" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Bracket-Level Analytics</CardTitle>
-                <CardDescription>TP/SL hit rates and realized R by bracket index</CardDescription>
+                <CardTitle>Bracket Performance</CardTitle>
+                <CardDescription>Hit rates and realized R by bracket level</CardDescription>
               </CardHeader>
               <CardContent>
-                {bracketMetrics.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No bracket data available</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={bracketMetrics}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="bracketIndex" label={{ value: 'Bracket #', position: 'insideBottom', offset: -5 }} />
-                      <YAxis />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                        }}
-                      />
-                      <Legend />
-                      <Bar dataKey="tpHitRate" fill="hsl(var(--chart-1))" name="TP Hit Rate (%)" />
-                      <Bar dataKey="slHitRate" fill="hsl(var(--chart-5))" name="SL Hit Rate (%)" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={bracketChartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="bracket" />
+                    <YAxis yAxisId="left" label={{ value: 'Hit Rate (%)', angle: -90, position: 'insideLeft' }} />
+                    <YAxis yAxisId="right" orientation="right" label={{ value: 'Avg R', angle: 90, position: 'insideRight' }} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Legend />
+                    <Bar yAxisId="left" dataKey="tpHitRate" fill="hsl(var(--chart-1))" name="TP Hit Rate (%)" />
+                    <Bar yAxisId="left" dataKey="slHitRate" fill="hsl(var(--chart-3))" name="SL Hit Rate (%)" />
+                    <Bar yAxisId="right" dataKey="avgRealizedR" fill="hsl(var(--chart-2))" name="Avg Realized R" />
+                  </BarChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-3">
               {bracketMetrics.map((bracket) => (
                 <Card key={bracket.bracketIndex}>
                   <CardHeader>
-                    <CardTitle className="text-lg">Bracket {bracket.bracketIndex}</CardTitle>
+                    <CardTitle className="text-lg">Bracket {bracket.bracketIndex + 1}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     <div className="flex justify-between">
@@ -581,93 +661,55 @@ export default function Analytics() {
                 </Card>
               ))}
             </div>
-
-            {biasMetrics.some(b => b.rValues.length > 0) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>R Distribution by Bias</CardTitle>
-                  <CardDescription>Distribution of realized R values</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={binRValues(biasMetrics.flatMap(b => b.rValues), 8)}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="bin" angle={-45} textAnchor="end" height={80} />
-                      <YAxis />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                        }}
-                      />
-                      <Bar dataKey="count" fill="hsl(var(--chart-3))" name="Trade Count" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            )}
           </TabsContent>
 
           {/* Time Tab */}
           <TabsContent value="time" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Time-of-Day Performance</CardTitle>
-                <CardDescription>Win rate and P/L by hour (UTC)</CardDescription>
+                <CardTitle>Hour of Day Performance</CardTitle>
+                <CardDescription>Win rate by hour (UTC)</CardDescription>
               </CardHeader>
               <CardContent>
-                {hourBuckets.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No hourly data available</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={hourBuckets}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="hour" angle={-45} textAnchor="end" height={80} />
-                      <YAxis />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                        }}
-                      />
-                      <Legend />
-                      <Bar dataKey="winRate" fill="hsl(var(--chart-1))" name="Win Rate (%)" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={hourBuckets}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="hour" label={{ value: 'Hour (UTC)', position: 'insideBottom', offset: -5 }} />
+                    <YAxis label={{ value: 'Win Rate (%)', angle: -90, position: 'insideLeft' }} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Bar dataKey="winRate" fill="hsl(var(--chart-1))" />
+                  </BarChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Day-of-Week Performance</CardTitle>
-                <CardDescription>Win rate and P/L by weekday</CardDescription>
+                <CardTitle>Day of Week Performance</CardTitle>
+                <CardDescription>Win rate by weekday</CardDescription>
               </CardHeader>
               <CardContent>
-                {weekdayBuckets.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No weekday data available</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={weekdayBuckets}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="weekday" />
-                      <YAxis yAxisId="left" />
-                      <YAxis yAxisId="right" orientation="right" />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                        }}
-                      />
-                      <Legend />
-                      <Bar yAxisId="left" dataKey="winRate" fill="hsl(var(--chart-1))" name="Win Rate (%)" />
-                      <Bar yAxisId="right" dataKey="totalPL" fill="hsl(var(--chart-2))" name="Total P/L ($)" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={weekdayBuckets}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="day" />
+                    <YAxis label={{ value: 'Win Rate (%)', angle: -90, position: 'insideLeft' }} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Bar dataKey="winRate" fill="hsl(var(--chart-2))" />
+                  </BarChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
           </TabsContent>
@@ -676,32 +718,37 @@ export default function Analytics() {
           <TabsContent value="tools" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Most Impactful Tools</CardTitle>
-                <CardDescription>Ranked by correlation with trade outcomes</CardDescription>
+                <CardTitle>Tool Impact Rankings</CardTitle>
+                <CardDescription>Performance impact by tool type and zone</CardDescription>
               </CardHeader>
               <CardContent>
                 {toolImpact.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    Insufficient data for tool impact analysis (minimum 3 trades per tool required)
+                    No tool data available
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {toolImpact.slice(0, 10).map((tool, index) => (
-                      <div key={tool.toolId} className="flex items-center gap-4 p-4 border rounded-lg">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-bold">
-                          {index + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{tool.toolName}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {tool.zone} • {tool.sampleSize} trades
-                          </p>
+                  <div className="space-y-3">
+                    {toolImpact.map((tool, index) => (
+                      <div
+                        key={`${tool.toolId}-${tool.zone}`}
+                        className="flex items-center justify-between p-4 rounded-lg border border-border"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary text-sm">
+                            #{index + 1}
+                          </div>
+                          <div>
+                            <p className="font-medium">{tool.toolName}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {tool.zone} • {tool.sampleSize} trades
+                            </p>
+                          </div>
                         </div>
                         <div className="text-right">
-                          <p className={`font-bold ${tool.impactScore >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            {tool.impactScore >= 0 ? '+' : ''}{tool.impactScore.toFixed(2)}
+                          <p className="text-lg font-bold">{tool.winRate.toFixed(1)}%</p>
+                          <p className={`text-sm ${tool.avgPL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            ${tool.avgPL.toFixed(2)} avg
                           </p>
-                          <p className="text-xs text-muted-foreground">Impact Score</p>
                         </div>
                       </div>
                     ))}
@@ -715,19 +762,56 @@ export default function Analytics() {
           <TabsContent value="advanced" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Volatility-Environment Performance</CardTitle>
-                <CardDescription>Performance by volatility bucket (based on stop-loss distance)</CardDescription>
+                <CardTitle>Volatility Environment Performance</CardTitle>
+                <CardDescription>Win rate and P/L by market volatility</CardDescription>
               </CardHeader>
               <CardContent>
-                {volatilityMetrics.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No volatility data available</div>
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={volatilityMetrics}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="environment" />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Legend />
+                    <Bar yAxisId="left" dataKey="winRate" fill="hsl(var(--chart-1))" name="Win Rate (%)" />
+                    <Bar yAxisId="right" dataKey="totalPL" fill="hsl(var(--chart-2))" name="Total P/L ($)" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Monte Carlo Simulation</CardTitle>
+                <CardDescription>
+                  1000 simulations based on your empirical R distribution
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {monteCarloResult.minPath.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Not enough data for simulation
+                  </div>
                 ) : (
                   <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={volatilityMetrics}>
+                    <LineChart
+                      data={monteCarloResult.minPath.map((_, i) => ({
+                        trade: i,
+                        min: monteCarloResult.minPath[i],
+                        avg: monteCarloResult.avgPath[i],
+                        max: monteCarloResult.maxPath[i],
+                      }))}
+                    >
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="bucket" />
-                      <YAxis yAxisId="left" />
-                      <YAxis yAxisId="right" orientation="right" />
+                      <XAxis dataKey="trade" label={{ value: 'Trade #', position: 'insideBottom', offset: -5 }} />
+                      <YAxis label={{ value: 'Equity ($)', angle: -90, position: 'insideLeft' }} />
                       <Tooltip
                         contentStyle={{
                           backgroundColor: 'hsl(var(--card))',
@@ -736,139 +820,24 @@ export default function Analytics() {
                         }}
                       />
                       <Legend />
-                      <Bar yAxisId="left" dataKey="winRate" fill="hsl(var(--chart-1))" name="Win Rate (%)" />
-                      <Bar yAxisId="right" dataKey="totalPL" fill="hsl(var(--chart-2))" name="Total P/L ($)" />
-                    </BarChart>
+                      <Line type="monotone" dataKey="min" stroke="hsl(var(--chart-3))" strokeWidth={1} dot={false} name="Worst Case" />
+                      <Line type="monotone" dataKey="avg" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} name="Average" />
+                      <Line type="monotone" dataKey="max" stroke="hsl(var(--chart-2))" strokeWidth={1} dot={false} name="Best Case" />
+                    </LineChart>
                   </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              {volatilityMetrics.map((vol) => (
-                <Card key={vol.bucket}>
-                  <CardHeader>
-                    <CardTitle className="text-lg">{vol.bucket} Volatility</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Trades</span>
-                      <span className="font-medium">{vol.trades}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Win Rate</span>
-                      <span className="font-medium">{vol.winRate.toFixed(1)}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Total P/L</span>
-                      <span className={`font-medium ${vol.totalPL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        ${vol.totalPL.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Avg R</span>
-                      <span className="font-medium">{vol.avgR.toFixed(2)}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Monte Carlo Simulation</CardTitle>
-                <CardDescription>Projected equity paths based on your R distribution (100 runs, 200 trades each)</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {!monteCarloResult ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Insufficient data for Monte Carlo simulation (minimum 5 completed trades required)
-                  </div>
-                ) : (
-                  <>
-                    <ResponsiveContainer width="100%" height={400}>
-                      <LineChart>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis 
-                          dataKey="index" 
-                          type="number" 
-                          domain={[0, 200]} 
-                          label={{ value: 'Trade #', position: 'insideBottom', offset: -5 }} 
-                        />
-                        <YAxis label={{ value: 'Cumulative R', angle: -90, position: 'insideLeft' }} />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: 'hsl(var(--card))',
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: '8px',
-                          }}
-                        />
-                        <Legend />
-                        <Line 
-                          data={monteCarloResult.minPath.map((r, i) => ({ index: i, r }))} 
-                          type="monotone" 
-                          dataKey="r" 
-                          stroke="hsl(var(--chart-5))" 
-                          strokeWidth={2} 
-                          name="Min Path" 
-                          dot={false}
-                        />
-                        <Line 
-                          data={monteCarloResult.avgPath.map((r, i) => ({ index: i, r }))} 
-                          type="monotone" 
-                          dataKey="r" 
-                          stroke="hsl(var(--chart-1))" 
-                          strokeWidth={3} 
-                          name="Avg Path" 
-                          dot={false}
-                        />
-                        <Line 
-                          data={monteCarloResult.maxPath.map((r, i) => ({ index: i, r }))} 
-                          type="monotone" 
-                          dataKey="r" 
-                          stroke="hsl(var(--chart-2))" 
-                          strokeWidth={2} 
-                          name="Max Path" 
-                          dot={false}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-
-                    <div className="grid gap-4 md:grid-cols-3 mt-6">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-lg">Min Projected</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-2xl font-bold text-red-500">{monteCarloResult.minEquity.toFixed(2)}R</p>
-                        </CardContent>
-                      </Card>
-
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-lg">Avg Projected</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-2xl font-bold">{monteCarloResult.avgEquity.toFixed(2)}R</p>
-                        </CardContent>
-                      </Card>
-
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-lg">Max Projected</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-2xl font-bold text-green-500">{monteCarloResult.maxEquity.toFixed(2)}R</p>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       )}
+
+      {/* Drilldown Dialog */}
+      <TradeDayDrilldownDialog
+        open={drilldownOpen}
+        onOpenChange={setDrilldownOpen}
+        dayAggregates={selectedDay}
+      />
     </div>
   );
 }
