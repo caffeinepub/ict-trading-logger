@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectStateVersion": 3,
+  "summary": "New project",
+  "architectural_notes": [],
+  "known_issues": [
+    "On mobile in the model builder, the tool palette button is not visible while scrolling through zones, making it hard to add tools."
+  ],
+  "isFixRequest": true,
+  "existing_features": [
+    {
+      "id": "feature-update-the-model-builder-mobile-layout-so-the-tool-palette-access-button-remains-visible-and-tappable-while-the-user-scrolls-through-the-narrative-framework-execution-zones-e-g-by-making-the-tool-palette-trigger-sticky-or-a-floating-action-button",
+      "title": "Update the Model Builder mobile layout so the Tool Palette access button remains visible and tappable while the user scrolls through the Narrative / Framework / Execution zones (e.g., by making the Tool Palette trigger sticky or a floating action button).",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-ensure-the-always-accessible-tool-palette-trigger-visually-indicates-when-a-tool-is-currently-selected-for-placement-and-provide-an-always-accessible-way-to-cancel-placement-mode-on-mobile-when-a-tool-is-selected",
+      "title": "Ensure the always-accessible Tool Palette trigger visually indicates when a tool is currently selected for placement, and provide an always-accessible way to cancel placement mode on mobile when a tool is selected.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "version": 1
+    }
+  ],
+  "new_feature_requests": [
+    {
+      "id": "AR-1",
+      "summary": "Improve mobile model builder UX by keeping the tool palette button always accessible (e.g., make it sticky while scrolling through zones)",
+      "reqIds": [],
+      "status": "pending"
+    }
+  ],
+  "projectName": "Make Model Builder Tool Palette button always accessible on mobile while scrolling zones",
+  "clarification_mode": "instant",
+  "clarification_rounds": 0
+}

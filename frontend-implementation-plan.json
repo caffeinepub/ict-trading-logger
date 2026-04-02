@@ -1,0 +1,45 @@
+{
+  "kind": "implementation_plan",
+  "version": "1.0",
+  "title": "Model Builder: Always-accessible Tool Palette trigger on mobile with placement-mode indicator/cancel",
+  "requirements": [
+    {
+      "id": "REQ-1",
+      "summary": "Keep the Tool Palette trigger visible and tappable on mobile while scrolling the Model Builder zones, without changing desktop behavior.",
+      "acceptanceCriteria": [
+        "On mobile viewport widths, while scrolling the zones content in the Model Builder, a user can always access a visible Tool Palette trigger without scrolling back to the top.",
+        "The sticky/floating Tool Palette trigger does not obscure critical UI (zone content, save controls) and respects safe-area insets (e.g., iOS notch/home indicator).",
+        "On non-mobile viewports, the existing Tool Palette layout/behavior remains functionally unchanged.",
+        "Tapping the always-visible Tool Palette trigger opens the existing Tool Palette UI (Sheet) and allows selecting a tool as before."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/ModelBuilder.tsx",
+          "operation": "modify",
+          "description": "Add a mobile-only (e.g., md:hidden) always-visible Tool Palette trigger rendered as a floating action button anchored to the viewport (position: fixed) so it remains accessible while the zones scroll. Use the existing shadcn-ui Sheet/SheetTrigger to open the current Tool Palette UI, and ensure the FAB is placed to avoid overlapping existing fixed header/footer controls. Include safe-area-aware spacing (e.g., via Tailwind calc with env(safe-area-inset-bottom/right) or a CSS helper class). Verify the component's usage instructions before implementing."
+        },
+        {
+          "path": "frontend/src/index.css",
+          "operation": "modify",
+          "description": "Add minimal, app-wide safe-area helper utilities/classes (scoped for reuse) if needed to support the Model Builder's mobile floating trigger positioning (e.g., bottom padding/margins using env(safe-area-inset-bottom)). Keep changes limited to enabling the Model Builder mobile FAB to respect safe areas."
+        }
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "summary": "Show a persistent placement-mode indicator on the always-accessible Tool Palette trigger and provide an always-accessible cancel action on mobile.",
+      "acceptanceCriteria": [
+        "When a tool is selected (placement mode active), the mobile UI shows a clear, persistent indicator (e.g., badge/text on the trigger) that placement mode is active.",
+        "Mobile users can cancel placement mode without needing to scroll back to any off-screen control.",
+        "Canceling placement mode clears the selected tool and returns the UI to its normal state."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/ModelBuilder.tsx",
+          "operation": "modify",
+          "description": "Enhance the mobile floating Tool Palette trigger to reflect placement mode state (selectedToolToPlace): show a persistent visual indicator (e.g., label/badge such as \"Placing\" + tool name, and/or icon change) and add an always-accessible cancel control near/within the floating trigger (e.g., secondary small button or toggle behavior) that calls the existing handleCancelPlacement and clears selectedToolToPlace. Ensure the existing placement flow (select tool -> pick zone -> add tool) remains unchanged, and that the cancel action is reachable without scrolling. Verify the component's usage instructions before implementing."
+        }
+      ]
+    }
+  ]
+}

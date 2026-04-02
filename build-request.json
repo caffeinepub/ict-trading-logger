@@ -1,0 +1,58 @@
+{
+  "kind": "build_request",
+  "title": "Make Model Builder Tool Palette button always accessible on mobile while scrolling zones",
+  "priority": "normal",
+  "requirements": [
+    {
+      "id": "REQ-1",
+      "text": "Update the Model Builder mobile layout so the Tool Palette access button remains visible and tappable while the user scrolls through the Narrative / Framework / Execution zones (e.g., by making the Tool Palette trigger sticky or a floating action button).",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-6"
+        ],
+        "quotes": [
+          "In model builder the tool palette button is not visible as you scroll thru the zones on mobile. We need a better way for mobile users. Maybe make the tool palete sticky so as you scroll thru the zones you always can click the tool palette to add a tool"
+        ]
+      },
+      "acceptanceCriteria": [
+        "On mobile viewport widths, while scrolling the zones content in the Model Builder, a user can always access a visible Tool Palette trigger without scrolling back to the top.",
+        "The sticky/floating Tool Palette trigger does not obscure critical UI (zone content, save controls) and respects safe-area insets (e.g., iOS notch/home indicator).",
+        "On non-mobile viewports, the existing Tool Palette layout/behavior remains functionally unchanged.",
+        "Tapping the always-visible Tool Palette trigger opens the existing Tool Palette UI (Sheet) and allows selecting a tool as before."
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "Ensure the always-accessible Tool Palette trigger visually indicates when a tool is currently selected for placement, and provide an always-accessible way to cancel placement mode on mobile when a tool is selected.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-6"
+        ],
+        "quotes": [
+          "always can click the tool palette to add a tool"
+        ]
+      },
+      "acceptanceCriteria": [
+        "When a tool is selected (placement mode active), the mobile UI shows a clear, persistent indicator (e.g., badge/text on the trigger) that placement mode is active.",
+        "Mobile users can cancel placement mode without needing to scroll back to any off-screen control.",
+        "Canceling placement mode clears the selected tool and returns the UI to its normal state."
+      ]
+    }
+  ],
+  "constraints": [
+    "Do not edit files under frontend/src/components/ui (compose existing shadcn components instead).",
+    "Do not modify immutable hook files listed in SYSTEM_CONTEXT (useInternetIdentity/useActor/main.tsx).",
+    "Keep changes scoped to the Model Builder UI (likely frontend/src/components/ModelBuilder.tsx and any new local styles/classes as needed)."
+  ],
+  "nonGoals": [
+    "No backend (Motoko) changes or schema changes.",
+    "No redesign of the tool palette contents, tool categories, or tool configuration dialogs beyond what is necessary to keep the trigger accessible on mobile.",
+    "No new authentication or permissions behavior changes."
+  ],
+  "imageRequirements": {
+    "required": [],
+    "edits": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "kind": "coverage_report",
+  "version": "1.0",
+  "generatedAt": "2026-02-16T00:06:39.453Z",
+  "sources": {
+    "buildRequest": true,
+    "implementationPlan": true
+  },
+  "requirements": {
+    "total": 2,
+    "implemented": 2,
+    "items": [
+      {
+        "id": "REQ-1",
+        "summary": "Update the Model Builder mobile layout so the Tool Palette access button remains visible and tappable while the user scrolls through the Narrative / Framework / Execution zones (e.g., by making the Tool Palette trigger sticky or a floating action button).",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/ModelBuilder.tsx",
+          "frontend/src/index.css"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/ModelBuilder.tsx",
+          "frontend/src/index.css"
+        ]
+      },
+      {
+        "id": "REQ-2",
+        "summary": "Ensure the always-accessible Tool Palette trigger visually indicates when a tool is currently selected for placement, and provide an always-accessible way to cancel placement mode on mobile when a tool is selected.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/ModelBuilder.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/ModelBuilder.tsx"
+        ]
+      }
+    ]
+  },
+  "changedFiles": [
+    "build-request.json",
+    "feature_evidence.json",
+    "frontend-file-summaries.txt",
+    "frontend-implementation-plan.json",
+    "frontend/src/components/ModelBuilder.tsx",
+    "frontend/src/index.css",
+    "project_state.json",
+    "scratch/component-selection.json",
+    "spec.md",
+    "spec_vs_diff_report.json"
+  ]
+}
