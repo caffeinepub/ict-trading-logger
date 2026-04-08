@@ -1,15 +1,18 @@
-import { useState, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { X, Upload, Image as ImageIcon } from 'lucide-react';
-import { toast } from 'sonner';
-import { ExternalBlob } from '../../backend';
+import { Button } from "@/components/ui/button";
+import { Image as ImageIcon, Upload, X } from "lucide-react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+import { ExternalBlob } from "../../backend";
 
 interface TradeImagesFieldProps {
   images: ExternalBlob[];
   onChange: (images: ExternalBlob[]) => void;
 }
 
-export default function TradeImagesField({ images, onChange }: TradeImagesFieldProps) {
+export default function TradeImagesField({
+  images,
+  onChange,
+}: TradeImagesFieldProps) {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -20,34 +23,34 @@ export default function TradeImagesField({ images, onChange }: TradeImagesFieldP
     setUploading(true);
     try {
       const newImageBlobs: ExternalBlob[] = [];
-      
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        
+
         // Validate file type
-        if (!file.type.startsWith('image/')) {
+        if (!file.type.startsWith("image/")) {
           toast.error(`${file.name} is not an image file`);
           continue;
         }
-        
+
         // Convert file to Uint8Array
         const arrayBuffer = await file.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
-        
+
         // Create ExternalBlob from bytes
         const blob = ExternalBlob.fromBytes(uint8Array);
         newImageBlobs.push(blob);
       }
-      
+
       onChange([...images, ...newImageBlobs]);
       toast.success(`${newImageBlobs.length} image(s) added`);
     } catch (error) {
-      toast.error('Failed to upload images');
+      toast.error("Failed to upload images");
       console.error(error);
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
@@ -67,7 +70,7 @@ export default function TradeImagesField({ images, onChange }: TradeImagesFieldP
         onChange={handleFileSelect}
         className="hidden"
       />
-      
+
       <Button
         type="button"
         variant="outline"
@@ -76,19 +79,24 @@ export default function TradeImagesField({ images, onChange }: TradeImagesFieldP
         className="w-full"
       >
         <Upload className="w-4 h-4 mr-2" />
-        {uploading ? 'Uploading...' : 'Upload Screenshots'}
+        {uploading ? "Uploading..." : "Upload Screenshots"}
       </Button>
 
       {images.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {images.map((imageBlob, index) => (
-            <div key={index} className="relative group aspect-video border rounded-lg overflow-hidden bg-muted">
+            <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: images are ordered blobs without stable IDs
+              key={index}
+              className="relative group aspect-video border rounded-lg overflow-hidden bg-muted"
+            >
               <img
                 src={imageBlob.getDirectURL()}
                 alt={`Trade screenshot ${index + 1}`}
                 className="w-full h-full object-cover"
               />
               <button
+                type="button"
                 onClick={() => handleRemove(index)}
                 className="absolute top-2 right-2 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                 title="Remove image"

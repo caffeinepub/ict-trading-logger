@@ -1,5 +1,5 @@
-import type { Trade } from '../../backend';
-import { ExternalBlob } from '../../backend';
+import type { ExternalBlob } from "../../backend";
+import type { Trade } from "../../types";
 
 /**
  * Reflection fields stored at trade level
@@ -16,8 +16,8 @@ export interface TradeReflection {
  */
 export function extractReflectionFromTrade(trade: Trade): TradeReflection {
   return {
-    notes: trade.notes || '',
-    mood: trade.mood || '',
+    notes: trade.notes || "",
+    mood: trade.mood || "",
     images: trade.images || [],
     would_take_again: trade.would_take_again || false,
   };
@@ -28,7 +28,7 @@ export function extractReflectionFromTrade(trade: Trade): TradeReflection {
  */
 export function mergeReflectionIntoTrade(
   trade: Trade,
-  reflection: TradeReflection
+  reflection: TradeReflection,
 ): Trade {
   return {
     ...trade,

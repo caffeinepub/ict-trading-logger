@@ -1,41 +1,27 @@
-import AccessControl "authorization/access-control";
-import Principal "mo:base/Principal";
-import OrderedMap "mo:base/OrderedMap";
-import Iter "mo:base/Iter";
-import Debug "mo:base/Debug";
-import Storage "blob-storage/Storage";
-import MixinStorage "blob-storage/Mixin";
-import Time "mo:base/Time";
-import Text "mo:base/Text";
-import Float "mo:base/Float";
-import Array "mo:base/Array";
-import Nat "mo:base/Nat";
-import Int "mo:base/Int";
+import AccessControl "mo:caffeineai-authorization/access-control";
+import MixinAuthorization "mo:caffeineai-authorization/MixinAuthorization";
+import MixinObjectStorage "mo:caffeineai-object-storage/Mixin";
+import Storage "mo:caffeineai-object-storage/Storage";
+import Principal "mo:core/Principal";
+import Map "mo:core/Map";
+import Text "mo:core/Text";
+import Time "mo:core/Time";
+import Float "mo:core/Float";
+import Array "mo:core/Array";
+import Nat "mo:core/Nat";
+import Int "mo:core/Int";
+import Runtime "mo:core/Runtime";
 
 
-
-// Apply content migration
 
 actor {
   // Initialize the user system state
   let accessControlState = AccessControl.initState();
+  include MixinAuthorization(accessControlState);
 
   // Initialize auth (first caller becomes admin, others become users)
   public shared ({ caller }) func initializeAccessControl() : async () {
     AccessControl.initialize(accessControlState, caller);
-  };
-
-  public query ({ caller }) func getCallerUserRole() : async AccessControl.UserRole {
-    AccessControl.getUserRole(accessControlState, caller);
-  };
-
-  public shared ({ caller }) func assignCallerUserRole(user : Principal, role : AccessControl.UserRole) : async () {
-    // Admin-only check happens inside
-    AccessControl.assignRole(accessControlState, caller, user, role);
-  };
-
-  public query ({ caller }) func isCallerAdmin() : async Bool {
-    AccessControl.isAdmin(accessControlState, caller);
   };
 
   public type UserProfile = {
@@ -43,12 +29,10 @@ actor {
     // Other user metadata if needed
   };
 
-  transient let principalMap = OrderedMap.Make<Principal>(Principal.compare);
-  var userProfiles = principalMap.empty<UserProfile>();
+  let userProfiles = Map.empty<Principal, UserProfile>();
 
   // Helper function to automatically register authenticated users
   func ensureUserRegistered(caller : Principal) {
-
     let anonymousPrincipal = Principal.fromText("2vxsx-fae");
     if (caller == anonymousPrincipal) {
       return; // Don't auto-register anonymous users
@@ -57,12 +41,12 @@ actor {
     if (AccessControl.getUserRole(accessControlState, caller) == #guest) {
       // Initialize the user with #user role
       AccessControl.initialize(accessControlState, caller);
-      switch (principalMap.get(userProfiles, caller)) {
+      switch (userProfiles.get(caller)) {
         case (null) {
           let emptyProfile : UserProfile = {
             name = "";
           };
-          userProfiles := principalMap.put(userProfiles, caller, emptyProfile);
+          userProfiles.add(caller, emptyProfile);
         };
         case (?_) {};
       };
@@ -73,30 +57,30 @@ actor {
     // Any authenticated user can view their own profile
     let anonymousPrincipal = Principal.fromText("2vxsx-fae");
     if (caller == anonymousPrincipal) {
-      Debug.trap("Unauthorized: Anonymous users cannot access profiles");
+      Runtime.trap("Unauthorized: Anonymous users cannot access profiles");
     };
-    principalMap.get(userProfiles, caller);
+    userProfiles.get(caller);
   };
 
   public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
     // Users can only view their own profile, admins can view any profile
     let anonymousPrincipal = Principal.fromText("2vxsx-fae");
     if (caller == anonymousPrincipal) {
-      Debug.trap("Unauthorized: Anonymous users cannot access profiles");
+      Runtime.trap("Unauthorized: Anonymous users cannot access profiles");
     };
 
     if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
-      Debug.trap("Unauthorized: Cannot view another user's profile");
+      Runtime.trap("Unauthorized: Cannot view another user's profile");
     };
-    principalMap.get(userProfiles, user);
+    userProfiles.get(user);
   };
 
   public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
     ensureUserRegistered(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can save profiles");
+      Runtime.trap("Unauthorized: Only users can save profiles");
     };
-    userProfiles := principalMap.put(userProfiles, caller, profile);
+    userProfiles.add(caller, profile);
   };
 
   public type ToolConfig = {
@@ -109,7 +93,7 @@ actor {
     position : Nat;
   };
 
-  // New ExampleImage type
+  // ExampleImage type
   public type ExampleImage = {
     id : Text;
     blob : Storage.ExternalBlob;
@@ -125,7 +109,7 @@ actor {
     narrative : [ToolConfig];
     framework : [ToolConfig];
     execution : [ToolConfig];
-    example_images : [ExampleImage]; // New field for example images
+    example_images : [ExampleImage];
     created_at : Int;
   };
 
@@ -175,7 +159,7 @@ actor {
 
   public type BracketOrderOutcome = {
     bracket_id : Text;
-    closure_type : ClosureType; // Now always one per bracket, matches bracket_id
+    closure_type : ClosureType;
     closure_price : Float;
     execution_price : Float;
     size : Float;
@@ -248,12 +232,9 @@ actor {
   let maxCustomTools : Nat = 1000;
   let maxPropertiesPerTool : Nat = 50;
 
-  // OrderedMap setup
-  transient let textMap = OrderedMap.Make<Text>(Text.compare);
-
-  var models = textMap.empty<Model>();
-  var trades = textMap.empty<Trade>();
-  var customTools = textMap.empty<CustomToolDefinition>();
+  let models = Map.empty<Text, Model>();
+  let trades = Map.empty<Text, Trade>();
+  let customTools = Map.empty<Text, CustomToolDefinition>();
 
   // Helper function to check ownership or admin
   private func canAccessModel(caller : Principal, model : Model) : Bool {
@@ -272,58 +253,49 @@ actor {
   public shared ({ caller }) func createModel(model : Model) : async () {
     ensureUserRegistered(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can create models");
+      Runtime.trap("Unauthorized: Only users can create models");
     };
-    // Verify the owner field matches the caller
     if (model.owner != caller) {
-      Debug.trap("Unauthorized: Cannot create model for another user");
+      Runtime.trap("Unauthorized: Cannot create model for another user");
     };
-    models := textMap.put(models, model.id, model);
+    models.add(model.id, model);
   };
 
   public query ({ caller }) func getModel(id : Text) : async ?Model {
-    switch (textMap.get(models, id)) {
+    switch (models.get(id)) {
       case (null) { null };
       case (?model) {
         if (canAccessModel(caller, model)) {
           ?model;
         } else {
-          Debug.trap("Unauthorized: Cannot access another users model");
+          Runtime.trap("Unauthorized: Cannot access another users model");
         };
       };
     };
   };
 
   public query ({ caller }) func getAllModels() : async [Model] {
-    // Return only the caller's models (or all if admin)
     let isAdmin = AccessControl.isAdmin(accessControlState, caller);
-    Iter.toArray(
-      Iter.filter(
-        textMap.vals(models),
-        func(model : Model) : Bool {
-          isAdmin or model.owner == caller;
-        },
-      )
-    );
+    models.values().filter(func(model : Model) : Bool {
+      isAdmin or model.owner == caller;
+    }).toArray();
   };
 
   public shared ({ caller }) func updateModel(model : Model) : async () {
     ensureUserRegistered(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can update models");
+      Runtime.trap("Unauthorized: Only users can update models");
     };
-    // Check if model exists and caller has access
-    switch (textMap.get(models, model.id)) {
-      case (null) { Debug.trap("Model not found") };
+    switch (models.get(model.id)) {
+      case (null) { Runtime.trap("Model not found") };
       case (?existingModel) {
         if (not canAccessModel(caller, existingModel)) {
-          Debug.trap("Unauthorized: Cannot update another users model");
+          Runtime.trap("Unauthorized: Cannot update another users model");
         };
-        // Ensure owner cannot be changed
         if (model.owner != existingModel.owner) {
-          Debug.trap("Unauthorized: Cannot change model ownership");
+          Runtime.trap("Unauthorized: Cannot change model ownership");
         };
-        models := textMap.put(models, model.id, model);
+        models.add(model.id, model);
       };
     };
   };
@@ -331,15 +303,15 @@ actor {
   public shared ({ caller }) func deleteModel(id : Text) : async () {
     ensureUserRegistered(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can delete models");
+      Runtime.trap("Unauthorized: Only users can delete models");
     };
-    switch (textMap.get(models, id)) {
-      case (null) { Debug.trap("Model not found") };
+    switch (models.get(id)) {
+      case (null) { Runtime.trap("Model not found") };
       case (?model) {
         if (not canAccessModel(caller, model)) {
-          Debug.trap("Unauthorized: Cannot delete another users model");
+          Runtime.trap("Unauthorized: Cannot delete another users model");
         };
-        models := textMap.delete(models, id);
+        models.remove(id);
       };
     };
   };
@@ -348,67 +320,57 @@ actor {
   public shared ({ caller }) func createTrade(trade : Trade) : async () {
     ensureUserRegistered(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can create trades");
+      Runtime.trap("Unauthorized: Only users can create trades");
     };
-    // Verify the owner field matches the caller
     if (trade.owner != caller) {
-      Debug.trap("Unauthorized: Cannot create trade for another user");
+      Runtime.trap("Unauthorized: Cannot create trade for another user");
     };
-    // Verify the model belongs to the caller
-    switch (textMap.get(models, trade.model_id)) {
-      case (null) { Debug.trap("Model not found") };
+    switch (models.get(trade.model_id)) {
+      case (null) { Runtime.trap("Model not found") };
       case (?model) {
         if (not canAccessModel(caller, model)) {
-          Debug.trap("Unauthorized: Cannot create trade with another users model");
+          Runtime.trap("Unauthorized: Cannot create trade with another users model");
         };
       };
     };
-    trades := textMap.put(trades, trade.id, trade);
+    trades.add(trade.id, trade);
   };
 
   public query ({ caller }) func getTrade(id : Text) : async ?Trade {
-    switch (textMap.get(trades, id)) {
+    switch (trades.get(id)) {
       case (null) { null };
       case (?trade) {
         if (canAccessTrade(caller, trade)) {
           ?trade;
         } else {
-          Debug.trap("Unauthorized: Cannot access another users trade");
+          Runtime.trap("Unauthorized: Cannot access another users trade");
         };
       };
     };
   };
 
   public query ({ caller }) func getAllTrades() : async [Trade] {
-    // Return only the caller's trades (or all if admin)
     let isAdmin = AccessControl.isAdmin(accessControlState, caller);
-    Iter.toArray(
-      Iter.filter(
-        textMap.vals(trades),
-        func(trade : Trade) : Bool {
-          isAdmin or trade.owner == caller;
-        },
-      )
-    );
+    trades.values().filter(func(trade : Trade) : Bool {
+      isAdmin or trade.owner == caller;
+    }).toArray();
   };
 
   public shared ({ caller }) func updateTrade(trade : Trade) : async () {
     ensureUserRegistered(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can update trades");
+      Runtime.trap("Unauthorized: Only users can update trades");
     };
-    // Check if trade exists and caller has access
-    switch (textMap.get(trades, trade.id)) {
-      case (null) { Debug.trap("Trade not found") };
+    switch (trades.get(trade.id)) {
+      case (null) { Runtime.trap("Trade not found") };
       case (?existingTrade) {
         if (not canAccessTrade(caller, existingTrade)) {
-          Debug.trap("Unauthorized: Cannot update another users trade");
+          Runtime.trap("Unauthorized: Cannot update another users trade");
         };
-        // Ensure owner cannot be changed
         if (trade.owner != existingTrade.owner) {
-          Debug.trap("Unauthorized: Cannot change trade ownership");
+          Runtime.trap("Unauthorized: Cannot change trade ownership");
         };
-        trades := textMap.put(trades, trade.id, trade);
+        trades.add(trade.id, trade);
       };
     };
   };
@@ -416,15 +378,15 @@ actor {
   public shared ({ caller }) func deleteTrade(id : Text) : async () {
     ensureUserRegistered(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can delete trades");
+      Runtime.trap("Unauthorized: Only users can delete trades");
     };
-    switch (textMap.get(trades, id)) {
-      case (null) { Debug.trap("Trade not found") };
+    switch (trades.get(id)) {
+      case (null) { Runtime.trap("Trade not found") };
       case (?trade) {
         if (not canAccessTrade(caller, trade)) {
-          Debug.trap("Unauthorized: Cannot delete another users trade");
+          Runtime.trap("Unauthorized: Cannot delete another users trade");
         };
-        trades := textMap.delete(trades, id);
+        trades.remove(id);
       };
     };
   };
@@ -434,23 +396,23 @@ actor {
     ensureUserRegistered(caller);
 
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can create custom tools");
+      Runtime.trap("Unauthorized: Only users can create custom tools");
     };
 
-    let customToolCount = textMap.size(customTools);
+    let customToolCount = customTools.size();
     if (customToolCount >= maxCustomTools) {
-      Debug.trap("Tool limit reached. Please delete unused tools.");
+      Runtime.trap("Tool limit reached. Please delete unused tools.");
     };
 
     if (tool.properties.size() > maxPropertiesPerTool) {
-      Debug.trap("Too many properties. Limit is 50 per tool.");
+      Runtime.trap("Too many properties. Limit is 50 per tool.");
     };
 
     if (tool.owner != caller) {
-      Debug.trap("Unauthorized: You can only create tools for yourself");
+      Runtime.trap("Unauthorized: You can only create tools for yourself");
     };
 
-    customTools := textMap.put(customTools, tool.id, tool);
+    customTools.add(tool.id, tool);
     tool.id;
   };
 
@@ -458,21 +420,21 @@ actor {
     ensureUserRegistered(caller);
 
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can update custom tools");
+      Runtime.trap("Unauthorized: Only users can update custom tools");
     };
 
-    switch (textMap.get(customTools, tool.id)) {
-      case (null) { Debug.trap("Tool not found") };
+    switch (customTools.get(tool.id)) {
+      case (null) { Runtime.trap("Tool not found") };
       case (?existingTool) {
         if (not (canAccessTool(caller, existingTool))) {
-          Debug.trap("Unauthorized: Cannot update another users tool");
+          Runtime.trap("Unauthorized: Cannot update another users tool");
         };
 
         if (tool.owner != existingTool.owner) {
-          Debug.trap("Unauthorized: Cannot change tool ownership");
+          Runtime.trap("Unauthorized: Cannot change tool ownership");
         };
 
-        customTools := textMap.put(customTools, tool.id, tool);
+        customTools.add(tool.id, tool);
       };
     };
 
@@ -483,17 +445,17 @@ actor {
     ensureUserRegistered(caller);
 
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can delete custom tools");
+      Runtime.trap("Unauthorized: Only users can delete custom tools");
     };
 
-    switch (textMap.get(customTools, id)) {
-      case (null) { Debug.trap("Tool not found") };
+    switch (customTools.get(id)) {
+      case (null) { Runtime.trap("Tool not found") };
       case (?existingTool) {
         if (not (canAccessTool(caller, existingTool))) {
-          Debug.trap("Unauthorized: Cannot delete another users tool");
+          Runtime.trap("Unauthorized: Cannot delete another users tool");
         };
 
-        customTools := textMap.delete(customTools, id);
+        customTools.remove(id);
       };
     };
 
@@ -501,13 +463,13 @@ actor {
   };
 
   public query ({ caller }) func getCustomTool(id : Text) : async ?CustomToolDefinition {
-    switch (textMap.get(customTools, id)) {
+    switch (customTools.get(id)) {
       case (null) { null };
       case (?tool) {
         if (canAccessTool(caller, tool)) {
           ?tool;
         } else {
-          Debug.trap("Unauthorized: Cannot access another users tool");
+          Runtime.trap("Unauthorized: Cannot access another users tool");
         };
       };
     };
@@ -515,38 +477,27 @@ actor {
 
   public query ({ caller }) func getAllCustomTools() : async [CustomToolDefinition] {
     let isAdmin = AccessControl.isAdmin(accessControlState, caller);
-    Iter.toArray(
-      Iter.filter(
-        textMap.vals(customTools),
-        func(tool : CustomToolDefinition) : Bool {
-          isAdmin or tool.owner == caller;
-        },
-      )
-    );
+    customTools.values().filter(func(tool : CustomToolDefinition) : Bool {
+      isAdmin or tool.owner == caller;
+    }).toArray();
   };
 
   public query ({ caller }) func getCustomToolCount() : async Nat {
     let isAdmin = AccessControl.isAdmin(accessControlState, caller);
-    let userTools = Iter.toArray(
-      Iter.filter(
-        textMap.vals(customTools),
-        func(tool : CustomToolDefinition) : Bool {
-          isAdmin or tool.owner == caller;
-        },
-      )
-    );
-    userTools.size();
+    customTools.values().filter(func(tool : CustomToolDefinition) : Bool {
+      isAdmin or tool.owner == caller;
+    }).size();
   };
 
   public shared ({ caller }) func duplicateCustomTool(tool_id : Text, new_name : Text) : async Text {
     ensureUserRegistered(caller);
 
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can duplicate custom tools");
+      Runtime.trap("Unauthorized: Only users can duplicate custom tools");
     };
 
-    switch (textMap.get(customTools, tool_id)) {
-      case (null) { Debug.trap("Tool not found") };
+    switch (customTools.get(tool_id)) {
+      case (null) { Runtime.trap("Tool not found") };
       case (?tool) {
         if (canAccessTool(caller, tool)) {
           let newToolId = generateUniqueId();
@@ -558,10 +509,10 @@ actor {
             created_at = Time.now();
             updated_at = Time.now();
           };
-          customTools := textMap.put(customTools, newToolId, duplicatedTool);
+          customTools.add(newToolId, duplicatedTool);
           newToolId;
         } else {
-          Debug.trap("Unauthorized: Cannot duplicate another users tool");
+          Runtime.trap("Unauthorized: Cannot duplicate another users tool");
         };
       };
     };
@@ -570,56 +521,38 @@ actor {
   // Helper function to generate unique IDs
   func generateUniqueId() : Text {
     let timestamp = Time.now();
-    let randomPart = Nat.toText(Int.abs(timestamp));
-    "tool_" # Nat.toText(Int.abs(timestamp)) # "_" # randomPart;
+    let randomPart = Int.abs(timestamp).toText();
+    "tool_" # Int.abs(timestamp).toText() # "_" # randomPart;
   };
 
   // Filtering operations
   public query ({ caller }) func getTradesByModel(model_id : Text) : async [Trade] {
-    // Verify the model belongs to the caller
-    switch (textMap.get(models, model_id)) {
-      case (null) { Debug.trap("Model not found") };
+    switch (models.get(model_id)) {
+      case (null) { Runtime.trap("Model not found") };
       case (?model) {
         if (not canAccessModel(caller, model)) {
-          Debug.trap("Unauthorized: Cannot access trades for another users model");
+          Runtime.trap("Unauthorized: Cannot access trades for another users model");
         };
       };
     };
     let isAdmin = AccessControl.isAdmin(accessControlState, caller);
-    Iter.toArray(
-      Iter.filter(
-        textMap.vals(trades),
-        func(trade : Trade) : Bool {
-          trade.model_id == model_id and (isAdmin or trade.owner == caller);
-        },
-      )
-    );
+    trades.values().filter(func(trade : Trade) : Bool {
+      trade.model_id == model_id and (isAdmin or trade.owner == caller);
+    }).toArray();
   };
 
   public query ({ caller }) func getTradesByAsset(asset : Text) : async [Trade] {
-    // Return only the caller's trades for this asset
     let isAdmin = AccessControl.isAdmin(accessControlState, caller);
-    Iter.toArray(
-      Iter.filter(
-        textMap.vals(trades),
-        func(trade : Trade) : Bool {
-          trade.asset == asset and (isAdmin or trade.owner == caller);
-        },
-      )
-    );
+    trades.values().filter(func(trade : Trade) : Bool {
+      trade.asset == asset and (isAdmin or trade.owner == caller);
+    }).toArray();
   };
 
   public query ({ caller }) func getTradesByDateRange(start : Int, end : Int) : async [Trade] {
-    // Return only the caller's trades in this date range
     let isAdmin = AccessControl.isAdmin(accessControlState, caller);
-    Iter.toArray(
-      Iter.filter(
-        textMap.vals(trades),
-        func(trade : Trade) : Bool {
-          trade.created_at >= start and trade.created_at <= end and (isAdmin or trade.owner == caller);
-        },
-      )
-    );
+    trades.values().filter(func(trade : Trade) : Bool {
+      trade.created_at >= start and trade.created_at <= end and (isAdmin or trade.owner == caller);
+    }).toArray();
   };
 
   // Save bracket-order outcome for a single bracket and update analytics
@@ -646,23 +579,21 @@ actor {
   } {
     ensureUserRegistered(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can save bracket order outcomes");
+      Runtime.trap("Unauthorized: Only users can save bracket order outcomes");
     };
 
-    switch (textMap.get(trades, trade_id)) {
-      case (null) { Debug.trap("Trade not found") };
+    switch (trades.get(trade_id)) {
+      case (null) { Runtime.trap("Trade not found") };
       case (?trade) {
         if (trade.owner != caller) {
-          Debug.trap("Unauthorized: Cannot save bracket outcome for another users trade");
+          Runtime.trap("Unauthorized: Cannot save bracket outcome for another users trade");
         };
 
-        // Validate bracket-order rules for the new outcome
         let bracketValidation = validateBracketOrderRulesInternal(bracket_outcome, trade.bracket_order);
 
-        // Save the updated trade only if bracket rules are valid
         switch (bracketValidation) {
           case (#valid) {
-            let updatedBracketOutcomes = Array.append<BracketOrderOutcome>(trade.bracket_order_outcomes, [bracket_outcome]);
+            let updatedBracketOutcomes = trade.bracket_order_outcomes.concat([bracket_outcome]);
 
             let updatedTrade : Trade = {
               id = trade.id;
@@ -689,7 +620,7 @@ actor {
               close_time = ?Time.now();
             };
 
-            trades := textMap.put(trades, trade_id, updatedTrade);
+            trades.add(trade_id, updatedTrade);
 
             let analytics = updateModelAnalyticsInternal(trade.model_id, caller);
             {
@@ -700,13 +631,13 @@ actor {
             };
           };
           case (#invalid_take_profit_order) {
-            Debug.trap("Invalid take profit order: TP events must be executed in ascending order without skipping levels");
+            Runtime.trap("Invalid take profit order: TP events must be executed in ascending order without skipping levels");
           };
           case (#invalid_stop_loss_adjustment) {
-            Debug.trap("Invalid stop loss adjustment: Remaining SL size exceeds position remaining after TP events");
+            Runtime.trap("Invalid stop loss adjustment: Remaining SL size exceeds position remaining after TP events");
           };
           case (#invalid_event_combination) {
-            Debug.trap("Invalid event combination: Conflicting events detected (e.g. break-even with remaining SL events)");
+            Runtime.trap("Invalid event combination: Conflicting events detected (e.g. break-even with remaining SL events)");
           };
         };
       };
@@ -715,14 +646,13 @@ actor {
 
   // Helper functions - getCurrentTime accessible to all including guests
   public query func getCurrentTime() : async Int {
-    // Utility function accessible to all users (including guests)
     Time.now();
   };
 
   // Enhanced validation functions - require user role
   public query ({ caller }) func validateBracketGroups(bracket_groups : [BracketGroup], direction : Text) : async Bool {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can validate bracket groups");
+      Runtime.trap("Unauthorized: Only users can validate bracket groups");
     };
 
     for (group in bracket_groups.vals()) {
@@ -743,10 +673,9 @@ actor {
     bracket_order_outcomes : [BracketOrderOutcome],
   ) : async Bool {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can validate outcome sequence");
+      Runtime.trap("Unauthorized: Only users can validate outcome sequence");
     };
 
-    // Validate sequencing and logical combinations
     validateBracketOrderSequencingInternal(bracket_order_outcomes);
   };
 
@@ -761,7 +690,7 @@ actor {
     #invalid_event_combination;
   } {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can validate bracket order rules");
+      Runtime.trap("Unauthorized: Only users can validate bracket order rules");
     };
 
     validateBracketOrderRulesInternal(bracket_order_outcome, original_bracket_order);
@@ -777,13 +706,8 @@ actor {
     #invalid_stop_loss_adjustment;
     #invalid_event_combination;
   } {
-    // Validate take profit order (TP events must be in ascending order)
     let tpOrderValid = validateTakeProfitOrderInternal(bracket_order_outcome);
-
-    // Validate stop loss adjustment (remaining SL matches remaining position)
     let slAdjustmentValid = validateStopLossAdjustmentInternal(bracket_order_outcome, original_bracket_order);
-
-    // Validate event combination (no conflicting events)
     let eventCombinationValid = validateEventCombinationInternal(bracket_order_outcome);
 
     if (tpOrderValid and slAdjustmentValid and eventCombinationValid) {
@@ -798,27 +722,20 @@ actor {
   };
 
   private func validateTakeProfitOrderInternal(bracket_order_outcome : BracketOrderOutcome) : Bool {
-    // Ensure TP events are executed in ascending order (TP1, TP2, TP3, ...)
-    var lastTpIndex : Nat = 0;
+    let lastTpIndex : Nat = 0;
     switch (bracket_order_outcome.closure_type) {
       case (#take_profit) {
         let currentTpIndex = getBracketGroupIndexInternal(bracket_order_outcome.bracket_id) + 1;
         currentTpIndex > lastTpIndex;
       };
-      case (#stop_loss) {
-        true;
-      };
-      case (#break_even) {
-        true;
-      };
-      case (#manual_close) {
-        true;
-      };
+      case (#stop_loss) { true };
+      case (#break_even) { true };
+      case (#manual_close) { true };
     };
   };
 
   private func getBracketGroupIndexInternal(bracket_id : Text) : Nat {
-    switch (textMap.get(trades, bracket_id)) {
+    switch (trades.get(bracket_id)) {
       case (null) { 0 };
       case (?trade) {
         var index : Nat = 0;
@@ -836,24 +753,15 @@ actor {
   private func validateStopLossAdjustmentInternal(bracket_order_outcome : BracketOrderOutcome, original_bracket_order : BracketOrder) : Bool {
     var remainingPosition : Float = original_bracket_order.position_size;
     switch (bracket_order_outcome.closure_type) {
-      case (#take_profit) {
-        remainingPosition -= bracket_order_outcome.size;
-      };
-      case (#stop_loss) {
-        remainingPosition -= bracket_order_outcome.size;
-      };
-      case (#break_even) {
-        remainingPosition -= bracket_order_outcome.size;
-      };
-      case (#manual_close) {
-        remainingPosition -= bracket_order_outcome.size;
-      };
+      case (#take_profit) { remainingPosition -= bracket_order_outcome.size };
+      case (#stop_loss) { remainingPosition -= bracket_order_outcome.size };
+      case (#break_even) { remainingPosition -= bracket_order_outcome.size };
+      case (#manual_close) { remainingPosition -= bracket_order_outcome.size };
     };
     remainingPosition >= 0.0;
   };
 
   private func validateEventCombinationInternal(bracket_order_outcome : BracketOrderOutcome) : Bool {
-    // Just checking for conflicts with current TP/SL
     switch (bracket_order_outcome.closure_type) {
       case (#take_profit) { true };
       case (#stop_loss) { true };
@@ -865,7 +773,6 @@ actor {
   private func validateBracketOrderSequencingInternal(
     bracket_order_outcomes : [BracketOrderOutcome],
   ) : Bool {
-    // Validate take-profit sequencing
     var lastTpIndex : Nat = 0;
     for (outcome in bracket_order_outcomes.vals()) {
       switch (outcome.closure_type) {
@@ -879,8 +786,6 @@ actor {
         case (_) {};
       };
     };
-
-    // Break-even/Manual close allowed after TP
     true;
   };
 
@@ -900,22 +805,17 @@ actor {
       #invalid_event_combination;
     };
   } {
-    switch (textMap.get(models, model_id)) {
-      case (null) { Debug.trap("Model not found") };
+    switch (models.get(model_id)) {
+      case (null) { Runtime.trap("Model not found") };
       case (?model) {
         if (model.owner != caller_principal and not AccessControl.isAdmin(accessControlState, caller_principal)) {
-          Debug.trap("Unauthorized: Cannot update analytics for another users model");
+          Runtime.trap("Unauthorized: Cannot update analytics for another users model");
         };
 
         let isAdmin = AccessControl.isAdmin(accessControlState, caller_principal);
-        let modelTrades = Iter.toArray(
-          Iter.filter(
-            textMap.vals(trades),
-            func(trade : Trade) : Bool {
-              trade.model_id == model_id and trade.is_completed and (isAdmin or trade.owner == caller_principal);
-            },
-          )
-        );
+        let modelTrades = trades.values().filter(func(trade : Trade) : Bool {
+          trade.model_id == model_id and trade.is_completed and (isAdmin or trade.owner == caller_principal);
+        }).toArray();
 
         var totalTrades : Float = 0.0;
         var totalWins : Float = 0.0;
@@ -927,8 +827,8 @@ actor {
           if (trade.bracket_order_outcomes.size() > 0 and trade.bracket_order_outcomes[0].closure_type == #take_profit) {
             totalWins += 1.0;
           };
-          totalPL += Float.fromInt(trade.bracket_order_outcomes.size()); // Using size as placeholder for PL
-          totalRR += Float.fromInt(trade.bracket_order_outcomes.size()); // Using size as placeholder for RR
+          totalPL += Int.abs(trade.bracket_order_outcomes.size()).toFloat();
+          totalRR += Int.abs(trade.bracket_order_outcomes.size()).toFloat();
         };
 
         let winRate = if (totalTrades > 0.0) { totalWins / totalTrades } else { 0.0 };
@@ -966,7 +866,7 @@ actor {
   } {
     ensureUserRegistered(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can update model analytics");
+      Runtime.trap("Unauthorized: Only users can update model analytics");
     };
 
     updateModelAnalyticsInternal(model_id, caller);
@@ -975,7 +875,7 @@ actor {
   // Helper function for calculating total allocation
   public query ({ caller }) func getTotalAllocation(bracket_groups : [BracketGroup]) : async Float {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can get total allocation");
+      Runtime.trap("Unauthorized: Only users can get total allocation");
     };
 
     var totalAllocation : Float = 0.0;
@@ -989,31 +889,23 @@ actor {
   // Updated function to map trade conditions to model conditions
   public query ({ caller }) func mapTradeConditionsToModel(trade_conditions : [ModelCondition], model_conditions : [ModelCondition]) : async [ModelCondition] {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can map trade conditions");
+      Runtime.trap("Unauthorized: Only users can map trade conditions");
     };
 
-    // Map trade conditions to model conditions
     if (model_conditions.size() == 0) {
       return [];
     };
 
-    let mappedConditions = Iter.toArray(
-      Iter.map(
-        model_conditions.vals(),
-        func(model_condition : ModelCondition) : ModelCondition {
-          switch (findMatchingCondition(model_condition.id, trade_conditions)) {
-            case (?trade_condition) {
-              { model_condition with isChecked = trade_condition.isChecked };
-            };
-            case (null) {
-              { model_condition with isChecked = false };
-            };
-          };
-        },
-      )
-    );
-
-    mappedConditions;
+    model_conditions.map(func(model_condition : ModelCondition) : ModelCondition {
+      switch (findMatchingCondition(model_condition.id, trade_conditions)) {
+        case (?trade_condition) {
+          { model_condition with isChecked = trade_condition.isChecked };
+        };
+        case (null) {
+          { model_condition with isChecked = false };
+        };
+      };
+    });
   };
 
   // Helper function to find a matching condition by id
@@ -1028,61 +920,26 @@ actor {
 
   // Updated function to extract model conditions
   public query ({ caller }) func getModelConditions(model_id : Text) : async [ModelCondition] {
-    switch (textMap.get(models, model_id)) {
-      case (null) { Debug.trap("Model not found") };
+    switch (models.get(model_id)) {
+      case (null) { Runtime.trap("Model not found") };
       case (?model) {
         if (not canAccessModel(caller, model)) {
-          Debug.trap("Unauthorized: Cannot access another users model");
+          Runtime.trap("Unauthorized: Cannot access another users model");
         };
 
-        // Extract conditions from narrative, framework, and execution zones
-        let narrativeConditions = Iter.toArray(
-          Iter.map(
-            model.narrative.vals(),
-            func(tool : ToolConfig) : ModelCondition {
-              {
-                id = tool.id;
-                description = tool.properties;
-                zone = "narrative";
-                isChecked = false;
-              };
-            },
-          )
-        );
+        let narrativeConditions = model.narrative.map(func(tool : ToolConfig) : ModelCondition {
+          { id = tool.id; description = tool.properties; zone = "narrative"; isChecked = false };
+        });
 
-        let frameworkConditions = Iter.toArray(
-          Iter.map(
-            model.framework.vals(),
-            func(tool : ToolConfig) : ModelCondition {
-              {
-                id = tool.id;
-                description = tool.properties;
-                zone = "framework";
-                isChecked = false;
-              };
-            },
-          )
-        );
+        let frameworkConditions = model.framework.map(func(tool : ToolConfig) : ModelCondition {
+          { id = tool.id; description = tool.properties; zone = "framework"; isChecked = false };
+        });
 
-        let executionConditions = Iter.toArray(
-          Iter.map(
-            model.execution.vals(),
-            func(tool : ToolConfig) : ModelCondition {
-              {
-                id = tool.id;
-                description = tool.properties;
-                zone = "execution";
-                isChecked = false;
-              };
-            },
-          )
-        );
+        let executionConditions = model.execution.map(func(tool : ToolConfig) : ModelCondition {
+          { id = tool.id; description = tool.properties; zone = "execution"; isChecked = false };
+        });
 
-        // Combine all conditions using Array.append
-        let narrativeAndFramework = Array.append<ModelCondition>(narrativeConditions, frameworkConditions);
-        let allConditions = Array.append<ModelCondition>(narrativeAndFramework, executionConditions);
-
-        allConditions;
+        narrativeConditions.concat(frameworkConditions).concat(executionConditions);
       };
     };
   };
@@ -1090,7 +947,7 @@ actor {
   // New function to calculate adherence score
   public query ({ caller }) func calculateAdherenceScore(conditions : [ModelCondition]) : async Float {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only users can calculate adherence score");
+      Runtime.trap("Unauthorized: Only users can calculate adherence score");
     };
 
     if (conditions.size() == 0) {
@@ -1104,20 +961,15 @@ actor {
       };
     };
 
-    checkedCount / Float.fromInt(conditions.size());
+    checkedCount / Int.abs(conditions.size()).toFloat();
   };
 
   // New function to get trades by adherence score range
   public query ({ caller }) func getTradesByAdherenceRange(min_score : Float, max_score : Float) : async [Trade] {
     let isAdmin = AccessControl.isAdmin(accessControlState, caller);
-    Iter.toArray(
-      Iter.filter(
-        textMap.vals(trades),
-        func(trade : Trade) : Bool {
-          trade.adherence_score >= min_score and trade.adherence_score <= max_score and (isAdmin or trade.owner == caller);
-        },
-      )
-    );
+    trades.values().filter(func(trade : Trade) : Bool {
+      trade.adherence_score >= min_score and trade.adherence_score <= max_score and (isAdmin or trade.owner == caller);
+    }).toArray();
   };
 
   // New function to get adherence analytics
@@ -1128,14 +980,9 @@ actor {
     win_rate_low_adherence : Float;
   } {
     let isAdmin = AccessControl.isAdmin(accessControlState, caller);
-    let userTrades = Iter.toArray(
-      Iter.filter(
-        textMap.vals(trades),
-        func(trade : Trade) : Bool {
-          isAdmin or trade.owner == caller;
-        },
-      )
-    );
+    let userTrades = trades.values().filter(func(trade : Trade) : Bool {
+      isAdmin or trade.owner == caller;
+    }).toArray();
 
     let totalTrades = userTrades.size();
 
@@ -1170,7 +1017,7 @@ actor {
       };
     };
 
-    let avgAdherence = totalAdherence / Float.fromInt(totalTrades);
+    let avgAdherence = totalAdherence / Int.abs(totalTrades).toFloat();
     let winRateHigh = if (highAdherenceCount > 0.0) { highAdherenceWins / highAdherenceCount } else { 0.0 };
     let winRateLow = if (lowAdherenceCount > 0.0) { lowAdherenceWins / lowAdherenceCount } else { 0.0 };
 
@@ -1183,6 +1030,5 @@ actor {
   };
 
   // Storage setup
-  let storage = Storage.new();
-  include MixinStorage(storage);
+  include MixinObjectStorage();
 };

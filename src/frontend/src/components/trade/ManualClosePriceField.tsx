@@ -1,24 +1,27 @@
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface ManualClosePriceFieldProps {
   value: number | undefined;
   onChange: (value: number | undefined) => void;
 }
 
-export default function ManualClosePriceField({ value, onChange }: ManualClosePriceFieldProps) {
+export default function ManualClosePriceField({
+  value,
+  onChange,
+}: ManualClosePriceFieldProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
-    if (val === '') {
+    if (val === "") {
       onChange(undefined);
       return;
     }
-    
+
     // Validate numeric input
     if (!/^\d*\.?\d*$/.test(val)) return;
-    
-    const parsed = parseFloat(val);
-    if (!isNaN(parsed) && isFinite(parsed)) {
+
+    const parsed = Number.parseFloat(val);
+    if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
       onChange(parsed);
     }
   };
@@ -30,7 +33,7 @@ export default function ManualClosePriceField({ value, onChange }: ManualClosePr
         id="manual-close-price"
         type="number"
         step="0.01"
-        value={value ?? ''}
+        value={value ?? ""}
         onChange={handleChange}
         placeholder="Enter manual close price"
         className="font-mono"

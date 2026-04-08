@@ -1,5 +1,5 @@
-import type { Trade } from '../../backend';
-import { ClosureType } from '../../backend';
+import type { Trade } from "../../types";
+import { ClosureTypeEnum as ClosureType } from "../../types";
 
 export interface BracketMetrics {
   bracketIndex: number;
@@ -12,13 +12,17 @@ export interface BracketMetrics {
 }
 
 export function computeBracketMetrics(trades: Trade[]): BracketMetrics[] {
-  const completedTrades = trades.filter(t => t.is_completed && t.bracket_order_outcomes.length > 0);
-  
+  const completedTrades = trades.filter(
+    (t) => t.is_completed && t.bracket_order_outcomes.length > 0,
+  );
+
   if (completedTrades.length === 0) return [];
 
   // Determine max bracket count
-  const maxBrackets = Math.max(...completedTrades.map(t => t.bracket_order.bracket_groups.length));
-  
+  const maxBrackets = Math.max(
+    ...completedTrades.map((t) => t.bracket_order.bracket_groups.length),
+  );
+
   const metrics: BracketMetrics[] = [];
 
   for (let i = 0; i < maxBrackets; i++) {
@@ -27,17 +31,17 @@ export function computeBracketMetrics(trades: Trade[]): BracketMetrics[] {
     let totalR = 0;
     let count = 0;
 
-    completedTrades.forEach(trade => {
-      if (i >= trade.bracket_order.bracket_groups.length) return;
-      
+    for (const trade of completedTrades) {
+      if (i >= trade.bracket_order.bracket_groups.length) continue;
+
       const bracketGroup = trade.bracket_order.bracket_groups[i];
       const filled = trade.bracket_order_outcomes.find(
-        outcome => outcome.bracket_id === bracketGroup.bracket_id
+        (outcome) => outcome.bracket_id === bracketGroup.bracket_id,
       );
 
       if (filled) {
         count++;
-        
+
         if (filled.closure_type === ClosureType.take_profit) {
           tpCount++;
         } else if (filled.closure_type === ClosureType.stop_loss) {
@@ -47,17 +51,17 @@ export function computeBracketMetrics(trades: Trade[]): BracketMetrics[] {
         // Calculate R for this bracket
         const entry = trade.bracket_order.entry_price;
         const primarySL = trade.bracket_order.primary_stop_loss;
-        const isLong = trade.direction === 'long';
-        
-        const priceDiff = isLong 
-          ? (filled.closure_price - entry) 
-          : (entry - filled.closure_price);
+        const isLong = trade.direction === "long";
+
+        const priceDiff = isLong
+          ? filled.closure_price - entry
+          : entry - filled.closure_price;
         const stopDistance = Math.abs(entry - primarySL);
         const r = stopDistance > 0 ? priceDiff / stopDistance : 0;
-        
+
         totalR += r;
       }
-    });
+    }
 
     if (count > 0) {
       const avgR = totalR / count;

@@ -1,7 +1,10 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import TradeCalendarDayCell from './TradeCalendarDayCell';
-import type { CalendarDay, DayAggregates } from '../../utils/trade/tradeCalendar';
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import type {
+  CalendarDay,
+  DayAggregates,
+} from "../../utils/trade/tradeCalendar";
+import TradeCalendarDayCell from "./TradeCalendarDayCell";
 
 interface TradeCalendarMonthProps {
   year: number;
@@ -12,10 +15,20 @@ interface TradeCalendarMonthProps {
   onNextMonth: () => void;
 }
 
-const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 export default function TradeCalendarMonth({
@@ -42,16 +55,19 @@ export default function TradeCalendarMonth({
           </Button>
         </div>
       </div>
-      
+
       {/* Weekday Headers */}
       <div className="grid grid-cols-7 gap-2">
         {WEEKDAY_LABELS.map((label) => (
-          <div key={label} className="text-center text-sm font-medium text-muted-foreground py-2">
+          <div
+            key={label}
+            className="text-center text-sm font-medium text-muted-foreground py-2"
+          >
             {label}
           </div>
         ))}
       </div>
-      
+
       {/* Calendar Grid */}
       <div className="grid grid-cols-7 gap-2">
         {calendarDays.map((day) => (

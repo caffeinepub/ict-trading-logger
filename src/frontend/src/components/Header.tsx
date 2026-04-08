@@ -1,19 +1,35 @@
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useGetCallerUserProfile } from '../hooks/useQueries';
-import { useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, TrendingUp, FileText, BarChart3, Moon, Sun, LogOut, Zap } from 'lucide-react';
-import { useTheme } from 'next-themes';
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  BarChart3,
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  Moon,
+  Sun,
+  TrendingUp,
+  Zap,
+} from "lucide-react";
+import { useTheme } from "next-themes";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import { useGetCallerUserProfile } from "../hooks/useQueries";
 
 interface HeaderProps {
-  currentPage: 'dashboard' | 'models' | 'trades' | 'analytics';
-  onNavigate: (page: 'dashboard' | 'models' | 'trades' | 'analytics') => void;
+  currentPage: "dashboard" | "models" | "trades" | "analytics";
+  onNavigate: (page: "dashboard" | "models" | "trades" | "analytics") => void;
 }
 
 export default function Header({ currentPage, onNavigate }: HeaderProps) {
-  const { identity, clear, loginStatus } = useInternetIdentity();
+  const { identity, clear } = useInternetIdentity();
   const { data: userProfile } = useGetCallerUserProfile();
   const queryClient = useQueryClient();
   const { theme, setTheme } = useTheme();
@@ -27,9 +43,9 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
 
   const getInitials = (name: string) => {
     return name
-      .split(' ')
+      .split(" ")
       .map((n) => n[0])
-      .join('')
+      .join("")
       .toUpperCase()
       .slice(0, 2);
   };
@@ -50,36 +66,36 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
           {isAuthenticated && (
             <nav className="hidden md:flex items-center gap-1">
               <Button
-                variant={currentPage === 'dashboard' ? 'secondary' : 'ghost'}
+                variant={currentPage === "dashboard" ? "secondary" : "ghost"}
                 size="sm"
-                onClick={() => onNavigate('dashboard')}
+                onClick={() => onNavigate("dashboard")}
                 className="gap-2"
               >
                 <LayoutDashboard className="w-4 h-4" />
                 Dashboard
               </Button>
               <Button
-                variant={currentPage === 'models' ? 'secondary' : 'ghost'}
+                variant={currentPage === "models" ? "secondary" : "ghost"}
                 size="sm"
-                onClick={() => onNavigate('models')}
+                onClick={() => onNavigate("models")}
                 className="gap-2"
               >
                 <FileText className="w-4 h-4" />
                 Models
               </Button>
               <Button
-                variant={currentPage === 'trades' ? 'secondary' : 'ghost'}
+                variant={currentPage === "trades" ? "secondary" : "ghost"}
                 size="sm"
-                onClick={() => onNavigate('trades')}
+                onClick={() => onNavigate("trades")}
                 className="gap-2"
               >
                 <TrendingUp className="w-4 h-4" />
                 Trades
               </Button>
               <Button
-                variant={currentPage === 'analytics' ? 'secondary' : 'ghost'}
+                variant={currentPage === "analytics" ? "secondary" : "ghost"}
                 size="sm"
-                onClick={() => onNavigate('analytics')}
+                onClick={() => onNavigate("analytics")}
                 className="gap-2"
               >
                 <BarChart3 className="w-4 h-4" />
@@ -93,7 +109,7 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           >
             <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -103,7 +119,10 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
           {isAuthenticated && userProfile && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                <Button
+                  variant="ghost"
+                  className="relative h-9 w-9 rounded-full"
+                >
                   <Avatar className="h-9 w-9">
                     <AvatarFallback className="bg-primary/10 border border-primary/20 text-primary font-display">
                       {getInitials(userProfile.name)}
@@ -114,12 +133,19 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{userProfile.name}</p>
-                    <p className="text-xs leading-none text-muted-foreground">Trader</p>
+                    <p className="text-sm font-medium leading-none">
+                      {userProfile.name}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      Trader
+                    </p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer">
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="text-destructive cursor-pointer"
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>
@@ -133,36 +159,36 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
         <div className="md:hidden border-t border-border/40">
           <nav className="container flex items-center justify-around px-2 py-2">
             <Button
-              variant={currentPage === 'dashboard' ? 'secondary' : 'ghost'}
+              variant={currentPage === "dashboard" ? "secondary" : "ghost"}
               size="sm"
-              onClick={() => onNavigate('dashboard')}
+              onClick={() => onNavigate("dashboard")}
               className="flex-col h-auto py-2 gap-1"
             >
               <LayoutDashboard className="w-4 h-4" />
               <span className="text-xs">Dashboard</span>
             </Button>
             <Button
-              variant={currentPage === 'models' ? 'secondary' : 'ghost'}
+              variant={currentPage === "models" ? "secondary" : "ghost"}
               size="sm"
-              onClick={() => onNavigate('models')}
+              onClick={() => onNavigate("models")}
               className="flex-col h-auto py-2 gap-1"
             >
               <FileText className="w-4 h-4" />
               <span className="text-xs">Models</span>
             </Button>
             <Button
-              variant={currentPage === 'trades' ? 'secondary' : 'ghost'}
+              variant={currentPage === "trades" ? "secondary" : "ghost"}
               size="sm"
-              onClick={() => onNavigate('trades')}
+              onClick={() => onNavigate("trades")}
               className="flex-col h-auto py-2 gap-1"
             >
               <TrendingUp className="w-4 h-4" />
               <span className="text-xs">Trades</span>
             </Button>
             <Button
-              variant={currentPage === 'analytics' ? 'secondary' : 'ghost'}
+              variant={currentPage === "analytics" ? "secondary" : "ghost"}
               size="sm"
-              onClick={() => onNavigate('analytics')}
+              onClick={() => onNavigate("analytics")}
               className="flex-col h-auto py-2 gap-1"
             >
               <BarChart3 className="w-4 h-4" />

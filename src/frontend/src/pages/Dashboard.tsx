@@ -1,16 +1,45 @@
-import { useGetAllModels, useGetAllTrades } from '../hooks/useQueries';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Plus, TrendingUp, TrendingDown, DollarSign, Target, Award } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import type { Trade } from '../backend';
-import { computeTradePLFromOutcomes, computeTradeRRFromOutcomes, isTradeWinner, isTradeLoser } from '../utils/trade/tradeMetrics';
-import { useMemo } from 'react';
-import { aggregateTradesByDay, getCurrentWeekDays } from '../utils/trade/tradeCalendar';
-import TradeCalendarWeek from '../components/trade-calendar/TradeCalendarWeek';
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Award,
+  DollarSign,
+  Plus,
+  Target,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
+import { useMemo } from "react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import TradeCalendarWeek from "../components/trade-calendar/TradeCalendarWeek";
+import { useGetAllModels, useGetAllTrades } from "../hooks/useQueries";
+import type { Trade } from "../types";
+import {
+  aggregateTradesByDay,
+  getCurrentWeekDays,
+} from "../utils/trade/tradeCalendar";
+import {
+  computeTradePLFromOutcomes,
+  computeTradeRRFromOutcomes,
+  isTradeLoser,
+  isTradeWinner,
+} from "../utils/trade/tradeMetrics";
 
 interface DashboardProps {
-  onNavigate: (page: 'models' | 'trades' | 'analytics') => void;
+  onNavigate: (page: "models" | "trades" | "analytics") => void;
 }
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
@@ -20,20 +49,40 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   const isLoading = modelsLoading || tradesLoading;
 
   // Filter completed trades
-  const completedTrades = trades.filter(t => t.is_completed);
+  const completedTrades = trades.filter((t) => t.is_completed);
 
   // Calculate statistics
   const totalTrades = completedTrades.length;
-  const winningTrades = completedTrades.filter(t => isTradeWinner(t)).length;
-  const losingTrades = completedTrades.filter(t => isTradeLoser(t)).length;
+  const winningTrades = completedTrades.filter((t) => isTradeWinner(t)).length;
+  const losingTrades = completedTrades.filter((t) => isTradeLoser(t)).length;
   const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
 
-  const totalPL = completedTrades.reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
-  const avgRR = completedTrades.length > 0 ? completedTrades.reduce((sum, t) => sum + computeTradeRRFromOutcomes(t), 0) / completedTrades.length : 0;
+  const totalPL = completedTrades.reduce(
+    (sum, t) => sum + computeTradePLFromOutcomes(t),
+    0,
+  );
+  const avgRR =
+    completedTrades.length > 0
+      ? completedTrades.reduce(
+          (sum, t) => sum + computeTradeRRFromOutcomes(t),
+          0,
+        ) / completedTrades.length
+      : 0;
 
-  const grossProfit = completedTrades.filter(t => isTradeWinner(t)).reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
-  const grossLoss = Math.abs(completedTrades.filter(t => isTradeLoser(t)).reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0));
-  const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
+  const grossProfit = completedTrades
+    .filter((t) => isTradeWinner(t))
+    .reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
+  const grossLoss = Math.abs(
+    completedTrades
+      .filter((t) => isTradeLoser(t))
+      .reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0),
+  );
+  const profitFactor =
+    grossLoss > 0
+      ? grossProfit / grossLoss
+      : grossProfit > 0
+        ? Number.POSITIVE_INFINITY
+        : 0;
 
   // Calculate equity curve
   const equityCurve = completedTrades
@@ -56,9 +105,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   // Top performing models
   const modelPerformance = models.map((model) => {
     const modelTrades = completedTrades.filter((t) => t.model_id === model.id);
-    const modelPL = modelTrades.reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
-    const modelWins = modelTrades.filter(t => isTradeWinner(t)).length;
-    const modelWinRate = modelTrades.length > 0 ? (modelWins / modelTrades.length) * 100 : 0;
+    const modelPL = modelTrades.reduce(
+      (sum, t) => sum + computeTradePLFromOutcomes(t),
+      0,
+    );
+    const modelWins = modelTrades.filter((t) => isTradeWinner(t)).length;
+    const modelWinRate =
+      modelTrades.length > 0 ? (modelWins / modelTrades.length) * 100 : 0;
     return {
       model,
       pl: modelPL,
@@ -71,7 +124,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
   // Weekly calendar data
   const dayAggregates = useMemo(() => aggregateTradesByDay(trades), [trades]);
-  const weekDays = useMemo(() => getCurrentWeekDays(dayAggregates), [dayAggregates]);
+  const weekDays = useMemo(
+    () => getCurrentWeekDays(dayAggregates),
+    [dayAggregates],
+  );
 
   if (isLoading) {
     return (
@@ -91,14 +147,16 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Overview of your trading performance</p>
+          <p className="text-muted-foreground">
+            Overview of your trading performance
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => onNavigate('models')} className="gap-2">
+          <Button onClick={() => onNavigate("models")} className="gap-2">
             <Plus className="w-4 h-4" />
             New Model
           </Button>
-          <Button onClick={() => onNavigate('trades')} className="gap-2">
+          <Button onClick={() => onNavigate("trades")} className="gap-2">
             <Plus className="w-4 h-4" />
             Log Trade
           </Button>
@@ -113,10 +171,14 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${totalPL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            <div
+              className={`text-2xl font-bold ${totalPL >= 0 ? "text-green-500" : "text-red-500"}`}
+            >
               ${totalPL.toFixed(2)}
             </div>
-            <p className="text-xs text-muted-foreground">{totalTrades} total trades</p>
+            <p className="text-xs text-muted-foreground">
+              {totalTrades} total trades
+            </p>
           </CardContent>
         </Card>
 
@@ -140,7 +202,9 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {profitFactor === Infinity ? '∞' : profitFactor.toFixed(2)}
+              {profitFactor === Number.POSITIVE_INFINITY
+                ? "∞"
+                : profitFactor.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">
               ${grossProfit.toFixed(0)} / ${grossLoss.toFixed(0)}
@@ -164,12 +228,14 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       <Card>
         <CardHeader>
           <CardTitle>Weekly Summary</CardTitle>
-          <CardDescription>Your trading activity for the current week</CardDescription>
+          <CardDescription>
+            Your trading activity for the current week
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <TradeCalendarWeek
             weekDays={weekDays}
-            onViewFullCalendar={() => onNavigate('analytics')}
+            onViewFullCalendar={() => onNavigate("analytics")}
           />
         </CardContent>
       </Card>
@@ -189,12 +255,18 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                 <YAxis className="text-xs" />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
                   }}
                 />
-                <Line type="monotone" dataKey="equity" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                <Line
+                  type="monotone"
+                  dataKey="equity"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  dot={false}
+                />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -212,7 +284,11 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             {recentTrades.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <p>No trades logged yet</p>
-                <Button variant="link" onClick={() => onNavigate('trades')} className="mt-2">
+                <Button
+                  variant="link"
+                  onClick={() => onNavigate("trades")}
+                  className="mt-2"
+                >
                   Log your first trade
                 </Button>
               </div>
@@ -221,16 +297,21 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                 {recentTrades.map((trade) => {
                   const tradePL = computeTradePLFromOutcomes(trade);
                   const tradeRR = computeTradeRRFromOutcomes(trade);
-                  
+
                   return (
-                    <div key={trade.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                    <div
+                      key={trade.id}
+                      className="flex items-center justify-between p-3 rounded-lg border border-border"
+                    >
                       <div className="flex items-center gap-3">
                         <div
                           className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            trade.direction === 'long' ? 'bg-green-500/10' : 'bg-red-500/10'
+                            trade.direction === "long"
+                              ? "bg-green-500/10"
+                              : "bg-red-500/10"
                           }`}
                         >
-                          {trade.direction === 'long' ? (
+                          {trade.direction === "long" ? (
                             <TrendingUp className="w-5 h-5 text-green-500" />
                           ) : (
                             <TrendingDown className="w-5 h-5 text-red-500" />
@@ -239,15 +320,21 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                         <div>
                           <p className="font-medium">{trade.asset}</p>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(Number(trade.created_at) / 1000000).toLocaleDateString()}
+                            {new Date(
+                              Number(trade.created_at) / 1000000,
+                            ).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`font-bold ${tradePL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        <p
+                          className={`font-bold ${tradePL >= 0 ? "text-green-500" : "text-red-500"}`}
+                        >
                           ${tradePL.toFixed(2)}
                         </p>
-                        <p className="text-xs text-muted-foreground">{tradeRR.toFixed(2)}R</p>
+                        <p className="text-xs text-muted-foreground">
+                          {tradeRR.toFixed(2)}R
+                        </p>
                       </div>
                     </div>
                   );
@@ -261,20 +348,29 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         <Card>
           <CardHeader>
             <CardTitle>Top Performing Models</CardTitle>
-            <CardDescription>Your most profitable trading models</CardDescription>
+            <CardDescription>
+              Your most profitable trading models
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {topModels.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <p>No models created yet</p>
-                <Button variant="link" onClick={() => onNavigate('models')} className="mt-2">
+                <Button
+                  variant="link"
+                  onClick={() => onNavigate("models")}
+                  className="mt-2"
+                >
                   Create your first model
                 </Button>
               </div>
             ) : (
               <div className="space-y-3">
                 {topModels.map((item, index) => (
-                  <div key={item.model.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                  <div
+                    key={item.model.id}
+                    className="flex items-center justify-between p-3 rounded-lg border border-border"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary">
                         #{index + 1}
@@ -287,7 +383,9 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className={`font-bold ${item.pl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      <p
+                        className={`font-bold ${item.pl >= 0 ? "text-green-500" : "text-red-500"}`}
+                      >
                         ${item.pl.toFixed(2)}
                       </p>
                     </div>

@@ -1,31 +1,37 @@
-import { useState } from 'react';
-import { useInternetIdentity } from './hooks/useInternetIdentity';
-import { useGetCallerUserProfile } from './hooks/useQueries';
-import { ThemeProvider } from 'next-themes';
-import { Toaster } from '@/components/ui/sonner';
-import Header from './components/Header';
-import Footer from './components/Footer';
-import Dashboard from './pages/Dashboard';
-import Models from './pages/Models';
-import Trades from './pages/Trades';
-import Analytics from './pages/Analytics';
-import ProfileSetupModal from './components/ProfileSetupModal';
-import LoginPrompt from './components/LoginPrompt';
+import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "next-themes";
+import { useState } from "react";
+import Footer from "./components/Footer";
+import Header from "./components/Header";
+import LoginPrompt from "./components/LoginPrompt";
+import ProfileSetupModal from "./components/ProfileSetupModal";
+import { useInternetIdentity } from "./hooks/useInternetIdentity";
+import { useGetCallerUserProfile } from "./hooks/useQueries";
+import Analytics from "./pages/Analytics";
+import Dashboard from "./pages/Dashboard";
+import Models from "./pages/Models";
+import Trades from "./pages/Trades";
 
 export default function App() {
   const { identity, isInitializing } = useInternetIdentity();
-  const { data: userProfile, isFetched: profileFetched } = useGetCallerUserProfile();
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'models' | 'trades' | 'analytics'>('dashboard');
+  const { data: userProfile, isFetched: profileFetched } =
+    useGetCallerUserProfile();
+  const [currentPage, setCurrentPage] = useState<
+    "dashboard" | "models" | "trades" | "analytics"
+  >("dashboard");
 
   const isAuthenticated = !!identity;
-  
+
   // Show profile setup modal only when:
   // 1. User is authenticated
   // 2. Profile data has been fetched
   // 3. Profile is null or has empty name
-  const showProfileSetup = isAuthenticated && 
-                          profileFetched && 
-                          (userProfile === null || !userProfile?.name || userProfile.name.trim() === '');
+  const showProfileSetup =
+    isAuthenticated &&
+    profileFetched &&
+    (userProfile === null ||
+      !userProfile?.name ||
+      userProfile.name.trim() === "");
 
   // Show loading spinner only during initial authentication check
   if (isInitializing) {
@@ -62,10 +68,12 @@ export default function App() {
       <div className="min-h-screen flex flex-col bg-background">
         <Header currentPage={currentPage} onNavigate={setCurrentPage} />
         <main className="flex-1">
-          {currentPage === 'dashboard' && <Dashboard onNavigate={setCurrentPage} />}
-          {currentPage === 'models' && <Models />}
-          {currentPage === 'trades' && <Trades />}
-          {currentPage === 'analytics' && <Analytics />}
+          {currentPage === "dashboard" && (
+            <Dashboard onNavigate={setCurrentPage} />
+          )}
+          {currentPage === "models" && <Models />}
+          {currentPage === "trades" && <Trades />}
+          {currentPage === "analytics" && <Analytics />}
         </main>
         <Footer />
         {showProfileSetup && <ProfileSetupModal />}

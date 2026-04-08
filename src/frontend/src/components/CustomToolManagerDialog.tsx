@@ -1,33 +1,71 @@
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { toast } from 'sonner';
-import { Plus, X, Save, Trash2, ChevronUp, ChevronDown, Edit2, ArrowLeft } from 'lucide-react';
-import { useGetAllCustomTools, useCreateCustomTool, useUpdateCustomTool, useDeleteCustomTool } from '../hooks/useQueries';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import type { CustomToolDefinition, CustomProperty, PropertyType } from '../backend';
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  Edit2,
+  Plus,
+  Save,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import {
+  useCreateCustomTool,
+  useDeleteCustomTool,
+  useGetAllCustomTools,
+  useUpdateCustomTool,
+} from "../hooks/useQueries";
+import type {
+  CustomProperty,
+  CustomToolDefinition,
+  PropertyType,
+} from "../types";
 
 interface CustomToolManagerDialogProps {
   open: boolean;
   onClose: () => void;
 }
 
-type EditMode = 'list' | 'create' | 'edit';
+type EditMode = "list" | "create" | "edit";
 
-export default function CustomToolManagerDialog({ open, onClose }: CustomToolManagerDialogProps) {
-  const [mode, setMode] = useState<EditMode>('list');
-  const [editingTool, setEditingTool] = useState<CustomToolDefinition | null>(null);
-  
+export default function CustomToolManagerDialog({
+  open,
+  onClose,
+}: CustomToolManagerDialogProps) {
+  const [mode, setMode] = useState<EditMode>("list");
+  const [editingTool, setEditingTool] = useState<CustomToolDefinition | null>(
+    null,
+  );
+
   // Form state
-  const [toolName, setToolName] = useState('');
+  const [toolName, setToolName] = useState("");
   const [properties, setProperties] = useState<CustomProperty[]>([]);
-  
+
   // Draft state for options input (allows natural typing with commas/spaces)
-  const [optionsDrafts, setOptionsDrafts] = useState<Record<string, string>>({});
+  const [optionsDrafts, setOptionsDrafts] = useState<Record<string, string>>(
+    {},
+  );
 
   const { data: customTools = [], isLoading } = useGetAllCustomTools();
   const createCustomTool = useCreateCustomTool();
@@ -36,21 +74,21 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
   const { identity } = useInternetIdentity();
 
   useEffect(() => {
-    if (mode === 'create') {
-      setToolName('');
+    if (mode === "create") {
+      setToolName("");
       setProperties([]);
       setEditingTool(null);
       setOptionsDrafts({});
-    } else if (mode === 'edit' && editingTool) {
+    } else if (mode === "edit" && editingTool) {
       setToolName(editingTool.name);
       setProperties([...editingTool.properties]);
       // Initialize drafts from existing properties
       const drafts: Record<string, string> = {};
-      editingTool.properties.forEach(prop => {
-        if (prop.type === 'select') {
-          drafts[prop.id] = prop.options.join(', ');
+      for (const prop of editingTool.properties) {
+        if (prop.type === "select") {
+          drafts[prop.id ?? ""] = prop.options.join(", ");
         }
-      });
+      }
       setOptionsDrafts(drafts);
     }
   }, [mode, editingTool]);
@@ -58,17 +96,17 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
   const handleAddProperty = () => {
     const newProperty: CustomProperty = {
       id: crypto.randomUUID(),
-      propertyLabel: '',
-      type: 'text' as PropertyType,
-      default_value: '',
+      propertyLabel: "",
+      type: "text" as PropertyType,
+      default_value: "",
       options: [],
     };
     setProperties([...properties, newProperty]);
-    setOptionsDrafts({ ...optionsDrafts, [newProperty.id]: '' });
+    setOptionsDrafts({ ...optionsDrafts, [newProperty.id]: "" });
   };
 
   const handleRemoveProperty = (id: string) => {
-    setProperties(properties.filter(p => p.id !== id));
+    setProperties(properties.filter((p) => p.id !== id));
     const newDrafts = { ...optionsDrafts };
     delete newDrafts[id];
     setOptionsDrafts(newDrafts);
@@ -77,19 +115,30 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
   const handleMovePropertyUp = (index: number) => {
     if (index === 0) return;
     const newProperties = [...properties];
-    [newProperties[index - 1], newProperties[index]] = [newProperties[index], newProperties[index - 1]];
+    [newProperties[index - 1], newProperties[index]] = [
+      newProperties[index],
+      newProperties[index - 1],
+    ];
     setProperties(newProperties);
   };
 
   const handleMovePropertyDown = (index: number) => {
     if (index === properties.length - 1) return;
     const newProperties = [...properties];
-    [newProperties[index], newProperties[index + 1]] = [newProperties[index + 1], newProperties[index]];
+    [newProperties[index], newProperties[index + 1]] = [
+      newProperties[index + 1],
+      newProperties[index],
+    ];
     setProperties(newProperties);
   };
 
-  const handleUpdateProperty = (id: string, updates: Partial<CustomProperty>) => {
-    setProperties(properties.map(p => p.id === id ? { ...p, ...updates } : p));
+  const handleUpdateProperty = (
+    id: string,
+    updates: Partial<CustomProperty>,
+  ) => {
+    setProperties(
+      properties.map((p) => (p.id === id ? { ...p, ...updates } : p)),
+    );
   };
 
   const handleOptionsInputChange = (propertyId: string, value: string) => {
@@ -99,29 +148,29 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
 
   const handleOptionsInputBlur = (propertyId: string) => {
     // Parse comma-separated values on blur
-    const draftValue = optionsDrafts[propertyId] || '';
+    const draftValue = optionsDrafts[propertyId] || "";
     const options = draftValue
-      .split(',')
-      .map(o => o.trim())
-      .filter(o => o);
+      .split(",")
+      .map((o) => o.trim())
+      .filter((o) => o);
     handleUpdateProperty(propertyId, { options });
   };
 
   const validateForm = (): string | null => {
     if (!toolName.trim()) {
-      return 'Tool name is required';
+      return "Tool name is required";
     }
 
     if (properties.length === 0) {
-      return 'At least one property is required';
+      return "At least one property is required";
     }
 
     for (const prop of properties) {
       if (!prop.propertyLabel.trim()) {
-        return 'All properties must have a label';
+        return "All properties must have a label";
       }
 
-      if (prop.type === 'select' && prop.options.length === 0) {
+      if (prop.type === "select" && prop.options.length === 0) {
         return `Select property "${prop.propertyLabel}" must have at least one option`;
       }
     }
@@ -131,23 +180,23 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
 
   const handleSave = async () => {
     if (!identity) {
-      toast.error('You must be logged in to save custom tools');
+      toast.error("You must be logged in to save custom tools");
       return;
     }
 
     // Parse any remaining draft options before saving
-    properties.forEach(prop => {
-      if (prop.type === 'select' && optionsDrafts[prop.id]) {
+    for (const prop of properties) {
+      if (prop.type === "select" && prop.id && optionsDrafts[prop.id]) {
         const options = optionsDrafts[prop.id]
-          .split(',')
-          .map(o => o.trim())
-          .filter(o => o);
+          .split(",")
+          .map((o) => o.trim())
+          .filter((o) => o);
         handleUpdateProperty(prop.id, { options });
       }
-    });
+    }
 
     // Small delay to ensure state updates
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     const error = validateForm();
     if (error) {
@@ -156,7 +205,7 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
     }
 
     try {
-      if (mode === 'create') {
+      if (mode === "create") {
         const now = BigInt(Date.now() * 1000000);
         await createCustomTool.mutateAsync({
           id: crypto.randomUUID(),
@@ -166,47 +215,56 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
           created_at: now,
           updated_at: now,
         });
-        toast.success('Custom tool created successfully!');
-      } else if (mode === 'edit' && editingTool) {
+        toast.success("Custom tool created successfully!");
+      } else if (mode === "edit" && editingTool) {
         await updateCustomTool.mutateAsync({
           ...editingTool,
           name: toolName.trim(),
           properties,
           updated_at: BigInt(Date.now() * 1000000),
         });
-        toast.success('Custom tool updated successfully!');
+        toast.success("Custom tool updated successfully!");
       }
-      setMode('list');
+      setMode("list");
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to save custom tool');
+      toast.error(error?.message || "Failed to save custom tool");
       console.error(error);
     }
   };
 
   const handleDelete = async (tool: CustomToolDefinition) => {
-    if (!confirm(`Are you sure you want to delete "${tool.name}"? This action cannot be undone.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete "${tool.name}"? This action cannot be undone.`,
+      )
+    ) {
       return;
     }
 
     try {
       await deleteCustomTool.mutateAsync(tool.id);
-      toast.success('Custom tool deleted successfully!');
+      toast.success("Custom tool deleted successfully!");
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to delete custom tool');
+      toast.error(error?.message || "Failed to delete custom tool");
       console.error(error);
     }
   };
 
   const handleEdit = (tool: CustomToolDefinition) => {
     setEditingTool(tool);
-    setMode('edit');
+    setMode("edit");
   };
 
   const renderPropertyEditor = (property: CustomProperty, index: number) => {
     return (
-      <div key={property.id} className="border rounded-lg p-4 space-y-3 bg-muted/30">
+      <div
+        key={property.id}
+        className="border rounded-lg p-4 space-y-3 bg-muted/30"
+      >
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-muted-foreground">Property {index + 1}</span>
+          <span className="text-sm font-medium text-muted-foreground">
+            Property {index + 1}
+          </span>
           <div className="flex gap-1">
             <Button
               variant="ghost"
@@ -242,7 +300,11 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
           <Input
             id={`label-${property.id}`}
             value={property.propertyLabel}
-            onChange={(e) => handleUpdateProperty(property.id, { propertyLabel: e.target.value })}
+            onChange={(e) =>
+              handleUpdateProperty(property.id, {
+                propertyLabel: e.target.value,
+              })
+            }
             placeholder="e.g., Direction, Timeframe, Level Type"
           />
         </div>
@@ -252,10 +314,15 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
           <Select
             value={property.type}
             onValueChange={(value) => {
-              handleUpdateProperty(property.id, { type: value as PropertyType });
+              handleUpdateProperty(property.id, {
+                type: value as PropertyType,
+              });
               // Initialize draft for select type
-              if (value === 'select' && !optionsDrafts[property.id]) {
-                setOptionsDrafts({ ...optionsDrafts, [property.id]: property.options.join(', ') });
+              if (value === "select" && !optionsDrafts[property.id]) {
+                setOptionsDrafts({
+                  ...optionsDrafts,
+                  [property.id]: property.options.join(", "),
+                });
               }
             }}
           >
@@ -271,13 +338,17 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
           </Select>
         </div>
 
-        {property.type === 'select' && (
+        {property.type === "select" && (
           <div className="space-y-2">
-            <Label htmlFor={`options-${property.id}`}>Options (comma-separated) *</Label>
+            <Label htmlFor={`options-${property.id}`}>
+              Options (comma-separated) *
+            </Label>
             <Input
               id={`options-${property.id}`}
-              value={optionsDrafts[property.id] ?? property.options.join(', ')}
-              onChange={(e) => handleOptionsInputChange(property.id, e.target.value)}
+              value={optionsDrafts[property.id] ?? property.options.join(", ")}
+              onChange={(e) =>
+                handleOptionsInputChange(property.id, e.target.value)
+              }
               onBlur={() => handleOptionsInputBlur(property.id)}
               placeholder="e.g., New York, Los Angeles, London"
             />
@@ -289,10 +360,12 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
 
         <div className="space-y-2">
           <Label htmlFor={`default-${property.id}`}>Default Value</Label>
-          {property.type === 'select' ? (
+          {property.type === "select" ? (
             <Select
               value={property.default_value}
-              onValueChange={(value) => handleUpdateProperty(property.id, { default_value: value })}
+              onValueChange={(value) =>
+                handleUpdateProperty(property.id, { default_value: value })
+              }
             >
               <SelectTrigger id={`default-${property.id}`}>
                 <SelectValue placeholder="Select default..." />
@@ -305,10 +378,12 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
                 ))}
               </SelectContent>
             </Select>
-          ) : property.type === 'toggle' ? (
+          ) : property.type === "toggle" ? (
             <Select
               value={property.default_value}
-              onValueChange={(value) => handleUpdateProperty(property.id, { default_value: value })}
+              onValueChange={(value) =>
+                handleUpdateProperty(property.id, { default_value: value })
+              }
             >
               <SelectTrigger id={`default-${property.id}`}>
                 <SelectValue placeholder="Select default..." />
@@ -321,10 +396,16 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
           ) : (
             <Input
               id={`default-${property.id}`}
-              type={property.type === 'number' ? 'number' : 'text'}
+              type={property.type === "number" ? "number" : "text"}
               value={property.default_value}
-              onChange={(e) => handleUpdateProperty(property.id, { default_value: e.target.value })}
-              placeholder={property.type === 'number' ? 'e.g., 1' : 'e.g., Default value'}
+              onChange={(e) =>
+                handleUpdateProperty(property.id, {
+                  default_value: e.target.value,
+                })
+              }
+              placeholder={
+                property.type === "number" ? "e.g., 1" : "e.g., Default value"
+              }
             />
           )}
         </div>
@@ -332,7 +413,7 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
     );
   };
 
-  if (mode === 'list') {
+  if (mode === "list") {
     return (
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -351,7 +432,9 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
                 </div>
               ) : customTools.length === 0 ? (
                 <div className="text-center py-12 border-2 border-dashed rounded-lg">
-                  <p className="text-sm text-muted-foreground">No custom tools yet</p>
+                  <p className="text-sm text-muted-foreground">
+                    No custom tools yet
+                  </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Create your first custom tool to get started
                   </p>
@@ -366,7 +449,8 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium">{tool.name}</h4>
                         <p className="text-sm text-muted-foreground mt-1">
-                          {tool.properties.length} propert{tool.properties.length === 1 ? 'y' : 'ies'}
+                          {tool.properties.length} propert
+                          {tool.properties.length === 1 ? "y" : "ies"}
                         </p>
                       </div>
                       <div className="flex gap-1">
@@ -398,7 +482,7 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
             <Button variant="outline" onClick={onClose}>
               Close
             </Button>
-            <Button onClick={() => setMode('create')} className="gap-2">
+            <Button onClick={() => setMode("create")} className="gap-2">
               <Plus className="w-4 h-4" />
               Create Custom Tool
             </Button>
@@ -417,13 +501,13 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={() => setMode('list')}
+              onClick={() => setMode("list")}
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
               <DialogTitle>
-                {mode === 'create' ? 'Create Custom Tool' : 'Edit Custom Tool'}
+                {mode === "create" ? "Create Custom Tool" : "Edit Custom Tool"}
               </DialogTitle>
               <DialogDescription>
                 Define properties for your custom tool
@@ -460,14 +544,18 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
 
               {properties.length === 0 ? (
                 <div className="text-center py-12 border-2 border-dashed rounded-lg">
-                  <p className="text-sm text-muted-foreground">No properties yet</p>
+                  <p className="text-sm text-muted-foreground">
+                    No properties yet
+                  </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Add at least one property to configure your tool
                   </p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {properties.map((property, index) => renderPropertyEditor(property, index))}
+                  {properties.map((property, index) =>
+                    renderPropertyEditor(property, index),
+                  )}
                 </div>
               )}
             </div>
@@ -475,7 +563,7 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
         </ScrollArea>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={() => setMode('list')}>
+          <Button variant="outline" onClick={() => setMode("list")}>
             Cancel
           </Button>
           <Button
@@ -484,7 +572,9 @@ export default function CustomToolManagerDialog({ open, onClose }: CustomToolMan
             className="gap-2"
           >
             <Save className="w-4 h-4" />
-            {createCustomTool.isPending || updateCustomTool.isPending ? 'Saving...' : 'Save Tool'}
+            {createCustomTool.isPending || updateCustomTool.isPending
+              ? "Saving..."
+              : "Save Tool"}
           </Button>
         </DialogFooter>
       </DialogContent>

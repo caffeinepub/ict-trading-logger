@@ -1,5 +1,10 @@
-import type { Trade } from '../../backend';
-import { computeTradePLFromOutcomes, computeTradeRRFromOutcomes, isTradeWinner, isTradeLoser } from '../trade/tradeMetrics';
+import type { Trade } from "../../types";
+import {
+  computeTradePLFromOutcomes,
+  computeTradeRRFromOutcomes,
+  isTradeLoser,
+  isTradeWinner,
+} from "../trade/tradeMetrics";
 
 export interface PerformanceMetrics {
   totalTrades: number;
@@ -15,9 +20,9 @@ export interface PerformanceMetrics {
 }
 
 export function computeMetrics(trades: Trade[]): PerformanceMetrics {
-  const completedTrades = trades.filter(t => t.is_completed);
+  const completedTrades = trades.filter((t) => t.is_completed);
   const totalTrades = completedTrades.length;
-  
+
   if (totalTrades === 0) {
     return {
       totalTrades: 0,
@@ -33,23 +38,39 @@ export function computeMetrics(trades: Trade[]): PerformanceMetrics {
     };
   }
 
-  const wins = completedTrades.filter(t => isTradeWinner(t));
-  const losses = completedTrades.filter(t => isTradeLoser(t));
-  
+  const wins = completedTrades.filter((t) => isTradeWinner(t));
+  const losses = completedTrades.filter((t) => isTradeLoser(t));
+
   const totalWins = wins.length;
   const totalLosses = losses.length;
   const winRate = (totalWins / totalTrades) * 100;
-  
-  const totalPL = completedTrades.reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
+
+  const totalPL = completedTrades.reduce(
+    (sum, t) => sum + computeTradePLFromOutcomes(t),
+    0,
+  );
   const avgPL = totalPL / totalTrades;
-  
-  const totalR = completedTrades.reduce((sum, t) => sum + computeTradeRRFromOutcomes(t), 0);
+
+  const totalR = completedTrades.reduce(
+    (sum, t) => sum + computeTradeRRFromOutcomes(t),
+    0,
+  );
   const avgR = totalR / totalTrades;
-  
-  const grossProfit = wins.reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
-  const grossLoss = Math.abs(losses.reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0));
-  const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? Infinity : 0);
-  
+
+  const grossProfit = wins.reduce(
+    (sum, t) => sum + computeTradePLFromOutcomes(t),
+    0,
+  );
+  const grossLoss = Math.abs(
+    losses.reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0),
+  );
+  const profitFactor =
+    grossLoss > 0
+      ? grossProfit / grossLoss
+      : grossProfit > 0
+        ? Number.POSITIVE_INFINITY
+        : 0;
+
   const avgWin = totalWins > 0 ? grossProfit / totalWins : 0;
   const avgLoss = totalLosses > 0 ? grossLoss / totalLosses : 0;
 

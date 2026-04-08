@@ -1,0 +1,162 @@
+// Version: 1.0.0
+type BracketGroup__535662280 =
+  {
+    bracket_id : Text;
+    size : Float;
+    sl_modified_by_user : Bool;
+    stop_loss_price : Float;
+    take_profit_price : Float
+  };
+type BracketOrderOutcome__284722296 =
+  {
+    bracket_group : BracketGroup__535662280;
+    bracket_id : Text;
+    closure_price : Float;
+    closure_type : ClosureType__61367325;
+    execution_price : Float;
+    outcome_time : Int;
+    size : Float
+  };
+type BracketOrder__1072533565 =
+  {
+    bracket_groups : [BracketGroup__535662280];
+    calculation_method : Text;
+    entry_price : Float;
+    position_size : Float;
+    position_sizer : PositionSizer__481169552;
+    primary_stop_loss : Float;
+    value_per_unit : Float
+  };
+type CalculationMethod__36740448 = {#point; #tick};
+type ClosureType__61367325 =
+  {#break_even; #manual_close; #stop_loss; #take_profit};
+type CustomProperty__945829750 =
+  {
+    default_value : Text;
+    id : Text;
+    options : [Text];
+    propertyLabel : Text;
+    type_ : PropertyType__136276502
+  };
+type CustomToolDefinition__906802767 =
+  {
+    created_at : Int;
+    id : Text;
+    name : Text;
+    owner : Principal;
+    properties : [CustomProperty__945829750];
+    updated_at : Int
+  };
+type Data__791452850<K, V> =
+  {var count : Nat__490723111; kvs : [var ?(K, V)]};
+type ExampleImage__797212388 =
+  {
+    blob : ExternalBlob__246066408;
+    created_at : Int;
+    description : Text;
+    id : Text
+  };
+type ExternalBlob__246066408 = Blob;
+type Internal__8484328<K, V> =
+  {children : [var ?Node__46230540<K, V>]; data : Data__791452850<K, V>};
+type Leaf__809889148<K, V> = {data : Data__791452850<K, V>};
+type Map__158565046<K, V> = Map__297112838<K, V>;
+type Map__297112838<K, V> =
+  {var root : Node__46230540<K, V>; var size : Nat__490723111};
+type Map__605269027<K, V> = Map__158565046<K, V>;
+type ModelCondition__236298003 =
+  {description : Text; id : Text; isChecked : Bool; zone : Text};
+type Model__596324129 =
+  {
+    created_at : Int;
+    description : Text;
+    example_images : [ExampleImage__797212388];
+    execution : [ToolConfig__684851694];
+    framework : [ToolConfig__684851694];
+    id : Text;
+    name : Text;
+    narrative : [ToolConfig__684851694];
+    owner : Principal
+  };
+type Nat__490723111 = Nat__920180692;
+type Nat__920180692 = Nat;
+type Node__46230540<K, V> =
+  {#internal : Internal__8484328<K, V>; #leaf : Leaf__809889148<K, V>};
+type PositionSizer__481169552 =
+  {
+    account_capital : Float;
+    allow_fractional_size : Bool;
+    asset_type : Text;
+    contract_lot_unit : Text;
+    entry_price : Float;
+    primary_stop_loss : Float;
+    risk_percentage : Float;
+    value_per_point : Float
+  };
+type PropertyType__136276502 = {#number; #select; #text; #toggle};
+type ToolConfig__684851694 =
+  {
+    actions : [Text];
+    id : Text;
+    interactions : [Text];
+    position : Nat;
+    properties : Text;
+    type_ : Text;
+    zone : Text
+  };
+type Trade__711108367 =
+  {
+    adherence_score : Float;
+    asset : Text;
+    bracket_order : BracketOrder__1072533565;
+    bracket_order_outcomes : [BracketOrderOutcome__284722296];
+    calculation_method : CalculationMethod__36740448;
+    close_time : ?Int;
+    created_at : Int;
+    direction : Text;
+    id : Text;
+    images : [ExternalBlob__246066408];
+    is_completed : Bool;
+    mistakeTags : [Text];
+    model_conditions : [ModelCondition__236298003];
+    model_id : Text;
+    mood : Text;
+    notes : Text;
+    owner : Principal;
+    position_sizer : PositionSizer__481169552;
+    quickTags : [Text];
+    strengthTags : [Text];
+    value_per_unit : Float;
+    would_take_again : Bool
+  };
+type UserProfile__491224006 = {name : Text};
+type UserRole__1054455867 = {#admin; #guest; #user};
+actor {
+  stable accessControlState :
+    {
+      var adminAssigned : Bool;
+      userRoles : Map__605269027<Principal, UserRole__1054455867>
+    };
+  stable customTools :
+    {
+      var root : Node__46230540<Text, CustomToolDefinition__906802767>;
+      var size : Nat__490723111
+    };
+  stable maxCustomTools : Nat;
+  stable maxPropertiesPerTool : Nat;
+  stable models :
+    {
+      var root : Node__46230540<Text, Model__596324129>;
+      var size : Nat__490723111
+    };
+  stable trades :
+    {
+      var root : Node__46230540<Text, Trade__711108367>;
+      var size : Nat__490723111
+    };
+  stable userProfiles :
+    {
+      var root : Node__46230540<Principal, UserProfile__491224006>;
+      var size : Nat__490723111
+    }
+};

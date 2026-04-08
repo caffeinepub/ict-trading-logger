@@ -1,15 +1,37 @@
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Plus, X, Save } from 'lucide-react';
-import type { ToolConfig, CustomToolDefinition } from '../backend';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Save, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import type {
+  CustomProperty,
+  CustomToolDefinition,
+  ToolConfig,
+} from "../types";
 
 interface ToolConfigDialogProps {
   tool: ToolConfig;
@@ -20,201 +42,717 @@ interface ToolConfigDialogProps {
   onClose: () => void;
 }
 
-// Unified ICT Configuration Enumerations
-const TIMEFRAME_UNITS = ['Minute', 'Hourly', 'Daily', 'Weekly', 'Monthly'];
-const DIRECTIONS = ['Bullish', 'Bearish', 'Neutral'];
-const STRUCTURAL_STATES = ['Regular', 'Inverted', 'Reclaimed'];
-const LOCATION_VS_DEALING_RANGE = ['Inside Discount (0-50%)', 'Near Equilibrium (≈50%)', 'Inside Premium (50-100%)'];
+// ─── ICT shared enumerations (unchanged) ─────────────────────────────────────
+const TIMEFRAME_UNITS = ["Minute", "Hourly", "Daily", "Weekly", "Monthly"];
+const DIRECTIONS = ["Bullish", "Bearish", "Neutral"];
+const STRUCTURAL_STATES = ["Regular", "Inverted", "Reclaimed"];
+const LOCATION_VS_DEALING_RANGE = [
+  "Inside Discount (0-50%)",
+  "Near Equilibrium (≈50%)",
+  "Inside Premium (50-100%)",
+];
+const INEFFICIENCY_TYPES = [
+  "FVG",
+  "SIBI",
+  "BISI",
+  "Liquidity Void",
+  "Volume Imbalance",
+  "BPR",
+];
+const FILL_STATES = ["Unfilled", "Partially Filled", "Fully Filled"];
+const GAP_TYPES = [
+  "New Week Opening Gap",
+  "New Day Opening Gap",
+  "Opening Range Gap",
+];
+const BEHAVIOR_TAGS = ["Trending Signature", "Consolidation Signature"];
+const BLOCK_TYPES = [
+  "Order Block",
+  "Breaker Block",
+  "Mitigation Block",
+  "Rejection Block",
+  "Propulsion Block",
+];
+const REFERENCE_POINTS = ["Open", "High", "Low", "CE"];
+const CE_SOURCES = ["Single Candle", "Dealing Range", "Gap"];
+const CE_LEVEL_TYPES = ["CE", "Fraction"];
+const CE_CONTEXTS = ["Fair Value", "Target", "Invalidation"];
+const LIQUIDITY_POOL_TYPES = [
+  "Equal Highs",
+  "Equal Lows",
+  "Swing Highs",
+  "Swing Lows",
+];
+const PD_ROLES = ["Target", "Entry Filter", "Invalidation"];
+const PREMIUM_DISCOUNT_TYPES = ["Premium", "Discount"];
+const ICT_SESSIONS = ["Asian", "London", "New York", "Sydney"];
+const MARKET_PHASES = [
+  "Accumulation",
+  "Manipulation",
+  "Distribution",
+  "Reaccumulation",
+];
+const MARKET_STRUCTURES = [
+  "Higher Highs/Higher Lows",
+  "Lower Highs/Lower Lows",
+  "Ranging",
+  "Consolidation",
+];
+const LIQUIDITY_TYPES = ["Buy Side", "Sell Side", "Equal Highs", "Equal Lows"];
+const KEY_LEVEL_TYPES = [
+  "Support",
+  "Resistance",
+  "Premium",
+  "Discount",
+  "Equilibrium",
+];
+const SILVER_BULLET_TYPES = ["AM (10:00-11:00)", "PM (14:00-15:00)"];
+const KILLZONE_TYPES = [
+  "London Killzone",
+  "New York Killzone",
+  "Asian Killzone",
+  "London Open",
+  "New York Open",
+];
+const STRENGTH_LEVELS = ["Strong", "Moderate", "Weak"];
+const PRIORITY_LEVELS = ["High", "Medium", "Low"];
+const PD_TYPES = ["PDH", "PDL", "Both"];
+const WEEKLY_TYPES = ["Weekly High", "Weekly Low", "Both"];
 
-// Inefficiency Tool Types
-const INEFFICIENCY_TYPES = ['FVG', 'SIBI', 'BISI', 'Liquidity Void', 'Volume Imbalance', 'BPR'];
-const FILL_STATES = ['Unfilled', 'Partially Filled', 'Fully Filled'];
+// ─── Generalized tool enumerations (A-F) ─────────────────────────────────────
+const GENERAL_DIRECTIONS = ["up", "down", "neutral"];
+const GENERAL_TIMEFRAMES = [
+  "1m",
+  "5m",
+  "15m",
+  "30m",
+  "1h",
+  "4h",
+  "D",
+  "W",
+  "M",
+];
+const GENERAL_SESSIONS = ["Asian", "London", "NY", "Sydney", "overlap"];
+const VOLATILITY_LEVELS = ["low", "normal", "high", "extreme"];
+const VOLATILITY_INDICATORS = ["ATR", "VIX", "range-based"];
+const MARKET_STATE = ["trending", "ranging", "transitioning"];
+const MARKET_BIAS = ["bullish", "bearish", "neutral"];
+const LEVEL_TYPES = ["support", "resistance", "both"];
+const STRENGTH_GENERAL = ["weak", "moderate", "strong"];
+const TRENDLINE_DIRECTIONS = ["ascending", "descending", "horizontal"];
+const FIB_LEVELS = [
+  "0.236",
+  "0.382",
+  "0.5",
+  "0.618",
+  "0.786",
+  "1.0",
+  "1.272",
+  "1.618",
+  "2.0",
+];
+const FIB_TYPES = ["retracement", "extension"];
+const RANGE_TYPES = ["range", "channel", "box"];
+const MA_SOURCES = ["close", "open", "high", "low", "hl2", "hlc3"];
+const VWAP_TYPES = ["daily", "weekly", "monthly", "anchored"];
+const VOLUME_PROFILE_TYPES = ["fixed-range", "session", "visible-range"];
+const VOLUME_DIRECTIONS = ["up", "down", "neutral"];
+const BREAKOUT_DIRECTIONS = ["bullish", "bearish"];
+const REVERSAL_PATTERNS = [
+  "head-and-shoulders",
+  "double-top",
+  "double-bottom",
+  "pin-bar",
+  "engulfing",
+  "hammer",
+  "shooting-star",
+  "doji",
+  "other",
+];
+const CONSOLIDATION_TYPES = [
+  "triangle",
+  "flag",
+  "pennant",
+  "rectangle",
+  "wedge",
+  "other",
+];
+const SESSION_TYPES_GENERAL = ["open", "close", "mid", "full"];
+const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+const TIMEZONES = ["UTC", "local", "EST", "GMT", "CET"];
 
-// Gap Tool Types
-const GAP_TYPES = ['New Week Opening Gap', 'New Day Opening Gap', 'Opening Range Gap'];
-const BEHAVIOR_TAGS = ['Trending Signature', 'Consolidation Signature'];
+// ─── Unified Tool Property Configurations ────────────────────────────────────
+const TOOL_PROPERTY_CONFIGS: Record<
+  string,
+  Record<
+    string,
+    {
+      type: string;
+      label: string;
+      options?: string[];
+      min?: number;
+      max?: number;
+    }
+  >
+> = {
+  // ── A. Market Context ────────────────────────────────────────────────────
+  "trend-bias": {
+    direction: {
+      type: "select",
+      options: GENERAL_DIRECTIONS,
+      label: "Trend Direction",
+    },
+    timeframe: {
+      type: "select",
+      options: GENERAL_TIMEFRAMES,
+      label: "Timeframe",
+    },
+    notes: { type: "text", label: "Notes" },
+  },
+  "market-structure-general": {
+    state: { type: "select", options: MARKET_STATE, label: "Market State" },
+    bias: { type: "select", options: MARKET_BIAS, label: "Directional Bias" },
+    timeframe: {
+      type: "select",
+      options: GENERAL_TIMEFRAMES,
+      label: "Timeframe",
+    },
+    notes: { type: "text", label: "Notes" },
+  },
+  volatility: {
+    level: {
+      type: "select",
+      options: VOLATILITY_LEVELS,
+      label: "Volatility Level",
+    },
+    indicator: {
+      type: "select",
+      options: VOLATILITY_INDICATORS,
+      label: "Measured By",
+    },
+    notes: { type: "text", label: "Notes" },
+  },
+  "session-time-of-day": {
+    session: { type: "select", options: GENERAL_SESSIONS, label: "Session" },
+    timeOfDay: { type: "text", label: "Time of Day (optional)" },
+    notes: { type: "text", label: "Notes" },
+  },
 
-// Block Tool Types
-const BLOCK_TYPES = ['Order Block', 'Breaker Block', 'Mitigation Block', 'Rejection Block', 'Propulsion Block'];
-const REFERENCE_POINTS = ['Open', 'High', 'Low', 'CE'];
+  // ── B. Price Levels / Areas ──────────────────────────────────────────────
+  "key-level-general": {
+    price: { type: "number", label: "Price Level", min: 0, max: 999999 },
+    type: { type: "select", options: LEVEL_TYPES, label: "Level Type" },
+    timeframe: {
+      type: "select",
+      options: GENERAL_TIMEFRAMES,
+      label: "Timeframe",
+    },
+    notes: { type: "text", label: "Notes" },
+  },
+  "support-resistance": {
+    price: { type: "number", label: "Price Level", min: 0, max: 999999 },
+    type: { type: "select", options: ["support", "resistance"], label: "Type" },
+    strength: { type: "select", options: STRENGTH_GENERAL, label: "Strength" },
+    timeframe: {
+      type: "select",
+      options: GENERAL_TIMEFRAMES,
+      label: "Timeframe",
+    },
+    notes: { type: "text", label: "Notes" },
+  },
+  trendline: {
+    direction: {
+      type: "select",
+      options: TRENDLINE_DIRECTIONS,
+      label: "Direction",
+    },
+    timeframe: {
+      type: "select",
+      options: GENERAL_TIMEFRAMES,
+      label: "Timeframe",
+    },
+    notes: { type: "text", label: "Notes" },
+  },
+  fibonacci: {
+    level: { type: "select", options: FIB_LEVELS, label: "Fibonacci Level" },
+    type: { type: "select", options: FIB_TYPES, label: "Type" },
+    timeframe: {
+      type: "select",
+      options: GENERAL_TIMEFRAMES,
+      label: "Timeframe",
+    },
+    notes: { type: "text", label: "Notes" },
+  },
+  "range-channel": {
+    upperBound: { type: "number", label: "Upper Bound", min: 0, max: 999999 },
+    lowerBound: { type: "number", label: "Lower Bound", min: 0, max: 999999 },
+    type: { type: "select", options: RANGE_TYPES, label: "Type" },
+    notes: { type: "text", label: "Notes" },
+  },
 
-// Equilibrium/CE Level Tool
-const CE_SOURCES = ['Single Candle', 'Dealing Range', 'Gap'];
-const CE_LEVEL_TYPES = ['CE', 'Fraction'];
-const CE_CONTEXTS = ['Fair Value', 'Target', 'Invalidation'];
+  // ── C. Indicators ────────────────────────────────────────────────────────
+  sma: {
+    period: { type: "number", label: "Period", min: 1, max: 500 },
+    timeframe: {
+      type: "select",
+      options: GENERAL_TIMEFRAMES,
+      label: "Timeframe",
+    },
+    source: { type: "select", options: MA_SOURCES, label: "Source" },
+    notes: { type: "text", label: "Notes" },
+  },
+  ema: {
+    period: { type: "number", label: "Period", min: 1, max: 500 },
+    timeframe: {
+      type: "select",
+      options: GENERAL_TIMEFRAMES,
+      label: "Timeframe",
+    },
+    source: { type: "select", options: MA_SOURCES, label: "Source" },
+    notes: { type: "text", label: "Notes" },
+  },
+  rsi: {
+    period: { type: "number", label: "Period", min: 2, max: 100 },
+    overbought: {
+      type: "number",
+      label: "Overbought Level",
+      min: 50,
+      max: 100,
+    },
+    oversold: { type: "number", label: "Oversold Level", min: 0, max: 50 },
+    timeframe: {
+      type: "select",
+      options: GENERAL_TIMEFRAMES,
+      label: "Timeframe",
+    },
+    notes: { type: "text", label: "Notes" },
+  },
+  macd: {
+    fastPeriod: { type: "number", label: "Fast Period", min: 1, max: 200 },
+    slowPeriod: { type: "number", label: "Slow Period", min: 1, max: 500 },
+    signalPeriod: { type: "number", label: "Signal Period", min: 1, max: 100 },
+    timeframe: {
+      type: "select",
+      options: GENERAL_TIMEFRAMES,
+      label: "Timeframe",
+    },
+    notes: { type: "text", label: "Notes" },
+  },
+  "custom-indicator": {
+    name: { type: "text", label: "Indicator Name" },
+    value: { type: "text", label: "Value / Setting" },
+    condition: { type: "text", label: "Condition / Signal" },
+    notes: { type: "text", label: "Notes" },
+  },
 
-// Other PD Arrays
-const LIQUIDITY_POOL_TYPES = ['Equal Highs', 'Equal Lows', 'Swing Highs', 'Swing Lows'];
-const PD_ROLES = ['Target', 'Entry Filter', 'Invalidation'];
-const PREMIUM_DISCOUNT_TYPES = ['Premium', 'Discount'];
+  // ── D. Volume & Order Flow ───────────────────────────────────────────────
+  "volume-profile": {
+    type: {
+      type: "select",
+      options: VOLUME_PROFILE_TYPES,
+      label: "Profile Type",
+    },
+    valueArea: { type: "number", label: "Value Area %", min: 1, max: 100 },
+    notes: { type: "text", label: "Notes" },
+  },
+  "volume-spike": {
+    threshold: { type: "text", label: "Spike Threshold (e.g. 2x avg)" },
+    timeframe: {
+      type: "select",
+      options: GENERAL_TIMEFRAMES,
+      label: "Timeframe",
+    },
+    direction: {
+      type: "select",
+      options: VOLUME_DIRECTIONS,
+      label: "Direction",
+    },
+    notes: { type: "text", label: "Notes" },
+  },
+  vwap: {
+    type: { type: "select", options: VWAP_TYPES, label: "VWAP Type" },
+    deviation: { type: "text", label: "Deviation Bands (optional)" },
+    notes: { type: "text", label: "Notes" },
+  },
 
-// Context & Narrative
-const SESSIONS = ['Asian', 'London', 'New York', 'Sydney'];
-const MARKET_PHASES = ['Accumulation', 'Manipulation', 'Distribution', 'Reaccumulation'];
-const MARKET_STRUCTURES = ['Higher Highs/Higher Lows', 'Lower Highs/Lower Lows', 'Ranging', 'Consolidation'];
-const LIQUIDITY_TYPES = ['Buy Side', 'Sell Side', 'Equal Highs', 'Equal Lows'];
-const KEY_LEVEL_TYPES = ['Support', 'Resistance', 'Premium', 'Discount', 'Equilibrium'];
-const SILVER_BULLET_TYPES = ['AM (10:00-11:00)', 'PM (14:00-15:00)'];
-const KILLZONE_TYPES = ['London Killzone', 'New York Killzone', 'Asian Killzone', 'London Open', 'New York Open'];
-const STRENGTH_LEVELS = ['Strong', 'Moderate', 'Weak'];
-const PRIORITY_LEVELS = ['High', 'Medium', 'Low'];
-const PD_TYPES = ['PDH', 'PDL', 'Both'];
-const WEEKLY_TYPES = ['Weekly High', 'Weekly Low', 'Both'];
+  // ── E. Pattern / Structure ───────────────────────────────────────────────
+  breakout: {
+    direction: {
+      type: "select",
+      options: BREAKOUT_DIRECTIONS,
+      label: "Breakout Direction",
+    },
+    level: { type: "text", label: "Level / Area" },
+    timeframe: {
+      type: "select",
+      options: GENERAL_TIMEFRAMES,
+      label: "Timeframe",
+    },
+    confirmation: { type: "text", label: "Confirmation Condition" },
+    notes: { type: "text", label: "Notes" },
+  },
+  "reversal-pattern": {
+    pattern: {
+      type: "select",
+      options: REVERSAL_PATTERNS,
+      label: "Pattern Type",
+    },
+    direction: {
+      type: "select",
+      options: BREAKOUT_DIRECTIONS,
+      label: "Reversal Direction",
+    },
+    timeframe: {
+      type: "select",
+      options: GENERAL_TIMEFRAMES,
+      label: "Timeframe",
+    },
+    notes: { type: "text", label: "Notes" },
+  },
+  consolidation: {
+    type: {
+      type: "select",
+      options: CONSOLIDATION_TYPES,
+      label: "Consolidation Type",
+    },
+    timeframe: {
+      type: "select",
+      options: GENERAL_TIMEFRAMES,
+      label: "Timeframe",
+    },
+    duration: { type: "text", label: "Duration (optional)" },
+    notes: { type: "text", label: "Notes" },
+  },
 
-// Unified Tool Property Configurations
-const TOOL_PROPERTY_CONFIGS: Record<string, any> = {
-  // Context & Narrative Tools
-  'htf-bias': {
-    biasDirection: { type: 'select', options: DIRECTIONS, label: 'Bias Direction' },
-    biasTimeframeUnit: { type: 'select', options: TIMEFRAME_UNITS, label: 'Bias Timeframe Unit' },
-    biasTimeframeValue: { type: 'number', label: 'Bias Timeframe Value', min: 1, max: 999 },
-    biasStrength: { type: 'select', options: STRENGTH_LEVELS, label: 'Bias Strength' },
+  // ── F. Time-Based ────────────────────────────────────────────────────────
+  "session-time": {
+    session: { type: "select", options: GENERAL_SESSIONS, label: "Session" },
+    type: {
+      type: "select",
+      options: SESSION_TYPES_GENERAL,
+      label: "Session Part",
+    },
+    notes: { type: "text", label: "Notes" },
   },
-  'market-phase': {
-    phase: { type: 'select', options: MARKET_PHASES, label: 'Current Phase' },
-    confirmed: { type: 'toggle', label: 'Phase Confirmed' },
+  "day-of-week": {
+    day: { type: "select", options: DAYS_OF_WEEK, label: "Day of Week" },
+    notes: { type: "text", label: "Notes" },
   },
-  'liquidity-draw': {
-    liquidityType: { type: 'select', options: LIQUIDITY_TYPES, label: 'Liquidity Type' },
-    priority: { type: 'select', options: PRIORITY_LEVELS, label: 'Priority' },
-    levelLabel: { type: 'text', label: 'Level Label (optional)' },
+  "killzone-custom": {
+    startTime: { type: "text", label: "Start Time (e.g. 09:30)" },
+    endTime: { type: "text", label: "End Time (e.g. 11:00)" },
+    timezone: { type: "select", options: TIMEZONES, label: "Timezone" },
+    label: { type: "text", label: "Window Label" },
+    notes: { type: "text", label: "Notes" },
   },
-  'market-structure': {
-    structureType: { type: 'select', options: MARKET_STRUCTURES, label: 'Structure Type' },
-    structureTimeframeUnit: { type: 'select', options: TIMEFRAME_UNITS, label: 'Structure Timeframe Unit' },
-    structureTimeframeValue: { type: 'number', label: 'Structure Timeframe Value', min: 1, max: 999 },
-    confirmed: { type: 'toggle', label: 'Structure Confirmed' },
+
+  // ── G. ICT Tools (preserved exactly) ────────────────────────────────────
+  "htf-bias": {
+    biasDirection: {
+      type: "select",
+      options: DIRECTIONS,
+      label: "Bias Direction",
+    },
+    biasTimeframeUnit: {
+      type: "select",
+      options: TIMEFRAME_UNITS,
+      label: "Bias Timeframe Unit",
+    },
+    biasTimeframeValue: {
+      type: "number",
+      label: "Bias Timeframe Value",
+      min: 1,
+      max: 999,
+    },
+    biasStrength: {
+      type: "select",
+      options: STRENGTH_LEVELS,
+      label: "Bias Strength",
+    },
   },
-  
-  // Reference Levels
-  'dealing-range': {
-    rangeTimeframeUnit: { type: 'select', options: TIMEFRAME_UNITS, label: 'Range Timeframe Unit' },
-    rangeTimeframeValue: { type: 'number', label: 'Range Timeframe Value', min: 1, max: 999 },
-    rangeLabel: { type: 'text', label: 'Range Label' },
+  "market-phase": {
+    phase: { type: "select", options: MARKET_PHASES, label: "Current Phase" },
+    confirmed: { type: "toggle", label: "Phase Confirmed" },
   },
-  'equilibrium-ce': {
-    source: { type: 'select', options: CE_SOURCES, label: 'Source' },
-    levelType: { type: 'select', options: CE_LEVEL_TYPES, label: 'Level Type' },
-    context: { type: 'select', options: CE_CONTEXTS, label: 'Context' },
-    structuralState: { type: 'select', options: STRUCTURAL_STATES, label: 'Structural State' },
+  "liquidity-draw": {
+    liquidityType: {
+      type: "select",
+      options: LIQUIDITY_TYPES,
+      label: "Liquidity Type",
+    },
+    priority: { type: "select", options: PRIORITY_LEVELS, label: "Priority" },
+    levelLabel: { type: "text", label: "Level Label (optional)" },
   },
-  'gap': {
-    gapType: { type: 'select', options: GAP_TYPES, label: 'Gap Type' },
-    orientation: { type: 'select', options: DIRECTIONS, label: 'Orientation' },
-    internalLevels: { type: 'toggle', label: 'Internal Levels (CE + Quadrants)' },
-    behaviorTag: { type: 'select', options: BEHAVIOR_TAGS, label: 'Behavior Tag' },
-    structuralState: { type: 'select', options: STRUCTURAL_STATES, label: 'Structural State' },
+  "market-structure": {
+    structureType: {
+      type: "select",
+      options: MARKET_STRUCTURES,
+      label: "Structure Type",
+    },
+    structureTimeframeUnit: {
+      type: "select",
+      options: TIMEFRAME_UNITS,
+      label: "Structure Timeframe Unit",
+    },
+    structureTimeframeValue: {
+      type: "number",
+      label: "Structure Timeframe Value",
+      min: 1,
+      max: 999,
+    },
+    confirmed: { type: "toggle", label: "Structure Confirmed" },
   },
-  'key-level': {
-    levelType: { type: 'select', options: KEY_LEVEL_TYPES, label: 'Level Type' },
-    tested: { type: 'toggle', label: 'Level Tested' },
-    levelLabel: { type: 'text', label: 'Level Label' },
+  "dealing-range": {
+    rangeTimeframeUnit: {
+      type: "select",
+      options: TIMEFRAME_UNITS,
+      label: "Range Timeframe Unit",
+    },
+    rangeTimeframeValue: {
+      type: "number",
+      label: "Range Timeframe Value",
+      min: 1,
+      max: 999,
+    },
+    rangeLabel: { type: "text", label: "Range Label" },
   },
-  'pdh-pdl': {
-    pdType: { type: 'select', options: PD_TYPES, label: 'Level Type' },
-    respected: { type: 'toggle', label: 'Level Respected' },
+  "equilibrium-ce": {
+    source: { type: "select", options: CE_SOURCES, label: "Source" },
+    levelType: { type: "select", options: CE_LEVEL_TYPES, label: "Level Type" },
+    context: { type: "select", options: CE_CONTEXTS, label: "Context" },
+    structuralState: {
+      type: "select",
+      options: STRUCTURAL_STATES,
+      label: "Structural State",
+    },
   },
-  'weekly-hl': {
-    weeklyType: { type: 'select', options: WEEKLY_TYPES, label: 'Level Type' },
-    currentWeek: { type: 'toggle', label: 'Current Week' },
+  gap: {
+    gapType: { type: "select", options: GAP_TYPES, label: "Gap Type" },
+    orientation: { type: "select", options: DIRECTIONS, label: "Orientation" },
+    internalLevels: {
+      type: "toggle",
+      label: "Internal Levels (CE + Quadrants)",
+    },
+    behaviorTag: {
+      type: "select",
+      options: BEHAVIOR_TAGS,
+      label: "Behavior Tag",
+    },
+    structuralState: {
+      type: "select",
+      options: STRUCTURAL_STATES,
+      label: "Structural State",
+    },
   },
-  
-  // Unified PD Arrays
-  'inefficiency': {
-    inefficiencyType: { type: 'select', options: INEFFICIENCY_TYPES, label: 'Inefficiency Type' },
-    direction: { type: 'select', options: DIRECTIONS, label: 'Direction' },
-    timeframeUnit: { type: 'select', options: TIMEFRAME_UNITS, label: 'Timeframe Unit' },
-    timeframeValue: { type: 'number', label: 'Timeframe Value', min: 1, max: 999 },
-    fillState: { type: 'select', options: FILL_STATES, label: 'Fill State' },
-    structuralState: { type: 'select', options: STRUCTURAL_STATES, label: 'Structural State' },
-    locationVsDealingRange: { type: 'select', options: LOCATION_VS_DEALING_RANGE, label: 'Location vs Dealing Range' },
+  "key-level": {
+    levelType: {
+      type: "select",
+      options: KEY_LEVEL_TYPES,
+      label: "Level Type",
+    },
+    tested: { type: "toggle", label: "Level Tested" },
+    levelLabel: { type: "text", label: "Level Label" },
   },
-  'block': {
-    blockType: { type: 'select', options: BLOCK_TYPES, label: 'Block Type' },
-    direction: { type: 'select', options: DIRECTIONS, label: 'Direction' },
-    timeframeUnit: { type: 'select', options: TIMEFRAME_UNITS, label: 'Timeframe Unit' },
-    timeframeValue: { type: 'number', label: 'Timeframe Value', min: 1, max: 999 },
-    referencePoint: { type: 'select', options: REFERENCE_POINTS, label: 'Reference Point' },
-    structuralState: { type: 'select', options: STRUCTURAL_STATES, label: 'Structural State' },
-    locationVsDealingRange: { type: 'select', options: LOCATION_VS_DEALING_RANGE, label: 'Location vs Dealing Range' },
+  "pdh-pdl": {
+    pdType: { type: "select", options: PD_TYPES, label: "Level Type" },
+    respected: { type: "toggle", label: "Level Respected" },
   },
-  'liquidity-pool': {
-    poolType: { type: 'select', options: LIQUIDITY_POOL_TYPES, label: 'Pool Type' },
-    timeframeUnit: { type: 'select', options: TIMEFRAME_UNITS, label: 'Timeframe Unit' },
-    timeframeValue: { type: 'number', label: 'Timeframe Value', min: 1, max: 999 },
-    role: { type: 'select', options: PD_ROLES, label: 'Role' },
-    structuralState: { type: 'select', options: STRUCTURAL_STATES, label: 'Structural State' },
-    locationVsDealingRange: { type: 'select', options: LOCATION_VS_DEALING_RANGE, label: 'Location vs Dealing Range' },
+  "weekly-hl": {
+    weeklyType: { type: "select", options: WEEKLY_TYPES, label: "Level Type" },
+    currentWeek: { type: "toggle", label: "Current Week" },
   },
-  'premium-discount': {
-    zoneType: { type: 'select', options: PREMIUM_DISCOUNT_TYPES, label: 'Zone Type' },
-    timeframeUnit: { type: 'select', options: TIMEFRAME_UNITS, label: 'Timeframe Unit' },
-    timeframeValue: { type: 'number', label: 'Timeframe Value', min: 1, max: 999 },
-    role: { type: 'select', options: PD_ROLES, label: 'Role' },
-    structuralState: { type: 'select', options: STRUCTURAL_STATES, label: 'Structural State' },
+  inefficiency: {
+    inefficiencyType: {
+      type: "select",
+      options: INEFFICIENCY_TYPES,
+      label: "Inefficiency Type",
+    },
+    direction: { type: "select", options: DIRECTIONS, label: "Direction" },
+    timeframeUnit: {
+      type: "select",
+      options: TIMEFRAME_UNITS,
+      label: "Timeframe Unit",
+    },
+    timeframeValue: {
+      type: "number",
+      label: "Timeframe Value",
+      min: 1,
+      max: 999,
+    },
+    fillState: { type: "select", options: FILL_STATES, label: "Fill State" },
+    structuralState: {
+      type: "select",
+      options: STRUCTURAL_STATES,
+      label: "Structural State",
+    },
+    locationVsDealingRange: {
+      type: "select",
+      options: LOCATION_VS_DEALING_RANGE,
+      label: "Location vs Dealing Range",
+    },
   },
-  
-  // Time & Session Tools
-  'session': {
-    sessionType: { type: 'select', options: SESSIONS, label: 'Trading Session' },
-    sessionTime: { type: 'text', label: 'Session Time Range' },
-    active: { type: 'toggle', label: 'Session Active' },
+  block: {
+    blockType: { type: "select", options: BLOCK_TYPES, label: "Block Type" },
+    direction: { type: "select", options: DIRECTIONS, label: "Direction" },
+    timeframeUnit: {
+      type: "select",
+      options: TIMEFRAME_UNITS,
+      label: "Timeframe Unit",
+    },
+    timeframeValue: {
+      type: "number",
+      label: "Timeframe Value",
+      min: 1,
+      max: 999,
+    },
+    referencePoint: {
+      type: "select",
+      options: REFERENCE_POINTS,
+      label: "Reference Point",
+    },
+    structuralState: {
+      type: "select",
+      options: STRUCTURAL_STATES,
+      label: "Structural State",
+    },
+    locationVsDealingRange: {
+      type: "select",
+      options: LOCATION_VS_DEALING_RANGE,
+      label: "Location vs Dealing Range",
+    },
   },
-  'killzone': {
-    killzoneType: { type: 'select', options: KILLZONE_TYPES, label: 'Killzone Type' },
-    killzoneTime: { type: 'text', label: 'Killzone Time Range' },
-    priority: { type: 'select', options: PRIORITY_LEVELS, label: 'Priority' },
+  "liquidity-pool": {
+    poolType: {
+      type: "select",
+      options: LIQUIDITY_POOL_TYPES,
+      label: "Pool Type",
+    },
+    timeframeUnit: {
+      type: "select",
+      options: TIMEFRAME_UNITS,
+      label: "Timeframe Unit",
+    },
+    timeframeValue: {
+      type: "number",
+      label: "Timeframe Value",
+      min: 1,
+      max: 999,
+    },
+    role: { type: "select", options: PD_ROLES, label: "Role" },
+    structuralState: {
+      type: "select",
+      options: STRUCTURAL_STATES,
+      label: "Structural State",
+    },
+    locationVsDealingRange: {
+      type: "select",
+      options: LOCATION_VS_DEALING_RANGE,
+      label: "Location vs Dealing Range",
+    },
   },
-  'silver-bullet': {
-    silverBulletType: { type: 'select', options: SILVER_BULLET_TYPES, label: 'Silver Bullet Type' },
-    timeWindow: { type: 'text', label: 'Time Window' },
-    active: { type: 'toggle', label: 'Currently Active' },
+  "premium-discount": {
+    zoneType: {
+      type: "select",
+      options: PREMIUM_DISCOUNT_TYPES,
+      label: "Zone Type",
+    },
+    timeframeUnit: {
+      type: "select",
+      options: TIMEFRAME_UNITS,
+      label: "Timeframe Unit",
+    },
+    timeframeValue: {
+      type: "number",
+      label: "Timeframe Value",
+      min: 1,
+      max: 999,
+    },
+    role: { type: "select", options: PD_ROLES, label: "Role" },
+    structuralState: {
+      type: "select",
+      options: STRUCTURAL_STATES,
+      label: "Structural State",
+    },
   },
-  'time-rule': {
-    ruleDescription: { type: 'text', label: 'Time-Based Rule' },
-    enforced: { type: 'toggle', label: 'Rule Enforced' },
+  session: {
+    sessionType: {
+      type: "select",
+      options: ICT_SESSIONS,
+      label: "Trading Session",
+    },
+    sessionTime: { type: "text", label: "Session Time Range" },
+    active: { type: "toggle", label: "Session Active" },
+  },
+  killzone: {
+    killzoneType: {
+      type: "select",
+      options: KILLZONE_TYPES,
+      label: "Killzone Type",
+    },
+    killzoneTime: { type: "text", label: "Killzone Time Range" },
+    priority: { type: "select", options: PRIORITY_LEVELS, label: "Priority" },
+  },
+  "silver-bullet": {
+    silverBulletType: {
+      type: "select",
+      options: SILVER_BULLET_TYPES,
+      label: "Silver Bullet Type",
+    },
+    timeWindow: { type: "text", label: "Time Window" },
+    active: { type: "toggle", label: "Currently Active" },
+  },
+  "time-rule": {
+    ruleDescription: { type: "text", label: "Time-Based Rule" },
+    enforced: { type: "toggle", label: "Rule Enforced" },
   },
 };
 
-export default function ToolConfigDialog({ tool, zone, getToolName, customToolsLookup, onSave, onClose }: ToolConfigDialogProps) {
-  const [properties, setProperties] = useState<Record<string, any>>({});
+export default function ToolConfigDialog({
+  tool,
+  zone,
+  getToolName,
+  customToolsLookup,
+  onSave,
+  onClose,
+}: ToolConfigDialogProps) {
+  const [properties, setProperties] = useState<Record<string, unknown>>({});
   const [interactions, setInteractions] = useState<string[]>([]);
   const [actions, setActions] = useState<string[]>([]);
-  const [newInteraction, setNewInteraction] = useState('');
-  const [newAction, setNewAction] = useState('');
+  const [newInteraction, setNewInteraction] = useState("");
+  const [newAction, setNewAction] = useState("");
 
   const customTool = customToolsLookup.get(tool.type);
 
   useEffect(() => {
-    setProperties(JSON.parse(tool.properties || '{}'));
+    setProperties(JSON.parse(tool.properties || "{}"));
     setInteractions([...tool.interactions]);
     setActions([...tool.actions]);
   }, [tool]);
 
-  const handlePropertyChange = (key: string, value: any) => {
-    setProperties({ ...properties, [key]: value });
+  const handlePropertyChange = (key: string, value: unknown) => {
+    setProperties((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleAddInteraction = () => {
     if (newInteraction.trim()) {
-      setInteractions([...interactions, newInteraction.trim()]);
-      setNewInteraction('');
+      setInteractions((prev) => [...prev, newInteraction.trim()]);
+      setNewInteraction("");
     }
   };
 
   const handleRemoveInteraction = (index: number) => {
-    setInteractions(interactions.filter((_, i) => i !== index));
+    setInteractions((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleAddAction = () => {
     if (newAction.trim()) {
-      setActions([...actions, newAction.trim()]);
-      setNewAction('');
+      setActions((prev) => [...prev, newAction.trim()]);
+      setNewAction("");
     }
   };
 
   const handleRemoveAction = (index: number) => {
-    setActions(actions.filter((_, i) => i !== index));
+    setActions((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = () => {
@@ -229,21 +767,35 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
 
   const propertyConfig = TOOL_PROPERTY_CONFIGS[tool.type] || {};
 
-  const renderPropertyField = (key: string, config: any) => {
+  const renderPropertyField = (
+    key: string,
+    config: {
+      type: string;
+      label: string;
+      options?: string[];
+      min?: number;
+      max?: number;
+    },
+  ) => {
     const value = properties[key];
 
-    if (config.type === 'select') {
+    if (config.type === "select") {
       return (
         <div key={key} className="space-y-2">
           <Label htmlFor={key} className="text-sm font-medium">
             {config.label}
           </Label>
-          <Select value={value || ''} onValueChange={(val) => handlePropertyChange(key, val)}>
+          <Select
+            value={(value as string) || ""}
+            onValueChange={(val) => handlePropertyChange(key, val)}
+          >
             <SelectTrigger id={key}>
-              <SelectValue placeholder={`Select ${config.label.toLowerCase()}...`} />
+              <SelectValue
+                placeholder={`Select ${config.label.toLowerCase()}...`}
+              />
             </SelectTrigger>
             <SelectContent>
-              {config.options.map((option: string) => (
+              {(config.options ?? []).map((option: string) => (
                 <SelectItem key={option} value={option}>
                   {option}
                 </SelectItem>
@@ -254,22 +806,25 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
       );
     }
 
-    if (config.type === 'toggle') {
+    if (config.type === "toggle") {
       return (
-        <div key={key} className="flex items-center justify-between space-x-2 py-2">
+        <div
+          key={key}
+          className="flex items-center justify-between space-x-2 py-2"
+        >
           <Label htmlFor={key} className="text-sm font-medium">
             {config.label}
           </Label>
           <Switch
             id={key}
-            checked={value === true || value === 'true'}
+            checked={value === true || value === "true"}
             onCheckedChange={(checked) => handlePropertyChange(key, checked)}
           />
         </div>
       );
     }
 
-    if (config.type === 'number') {
+    if (config.type === "number") {
       return (
         <div key={key} className="space-y-2">
           <Label htmlFor={key} className="text-sm font-medium">
@@ -278,17 +833,19 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
           <Input
             id={key}
             type="number"
-            min={config.min || 0}
-            max={config.max || 999}
-            value={value || ''}
-            onChange={(e) => handlePropertyChange(key, parseInt(e.target.value) || 1)}
+            min={config.min ?? 0}
+            max={config.max ?? 999}
+            value={(value as number) || ""}
+            onChange={(e) =>
+              handlePropertyChange(key, Number.parseInt(e.target.value) || 1)
+            }
             placeholder={`Enter ${config.label.toLowerCase()}...`}
           />
         </div>
       );
     }
 
-    if (config.type === 'text') {
+    if (config.type === "text") {
       return (
         <div key={key} className="space-y-2">
           <Label htmlFor={key} className="text-sm font-medium">
@@ -296,7 +853,7 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
           </Label>
           <Input
             id={key}
-            value={value || ''}
+            value={(value as string) || ""}
             onChange={(e) => handlePropertyChange(key, e.target.value)}
             placeholder={`Enter ${config.label.toLowerCase()}...`}
           />
@@ -307,21 +864,28 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
     return null;
   };
 
-  const renderCustomPropertyField = (prop: any) => {
+  const renderCustomPropertyField = (prop: CustomProperty) => {
     const value = properties[prop.propertyLabel];
 
-    if (prop.type === 'select') {
+    if (prop.type === "select") {
       return (
         <div key={prop.id} className="space-y-2">
           <Label htmlFor={prop.id} className="text-sm font-medium">
             {prop.propertyLabel}
           </Label>
-          <Select value={value || ''} onValueChange={(val) => handlePropertyChange(prop.propertyLabel, val)}>
+          <Select
+            value={(value as string) || ""}
+            onValueChange={(val) =>
+              handlePropertyChange(prop.propertyLabel, val)
+            }
+          >
             <SelectTrigger id={prop.id}>
-              <SelectValue placeholder={`Select ${prop.propertyLabel.toLowerCase()}...`} />
+              <SelectValue
+                placeholder={`Select ${prop.propertyLabel.toLowerCase()}...`}
+              />
             </SelectTrigger>
             <SelectContent>
-              {prop.options.map((option: string) => (
+              {(prop.options ?? []).map((option: string) => (
                 <SelectItem key={option} value={option}>
                   {option}
                 </SelectItem>
@@ -332,22 +896,27 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
       );
     }
 
-    if (prop.type === 'toggle') {
+    if (prop.type === "toggle") {
       return (
-        <div key={prop.id} className="flex items-center justify-between space-x-2 py-2">
+        <div
+          key={prop.id}
+          className="flex items-center justify-between space-x-2 py-2"
+        >
           <Label htmlFor={prop.id} className="text-sm font-medium">
             {prop.propertyLabel}
           </Label>
           <Switch
             id={prop.id}
-            checked={value === true || value === 'true'}
-            onCheckedChange={(checked) => handlePropertyChange(prop.propertyLabel, checked)}
+            checked={value === true || value === "true"}
+            onCheckedChange={(checked) =>
+              handlePropertyChange(prop.propertyLabel, checked)
+            }
           />
         </div>
       );
     }
 
-    if (prop.type === 'number') {
+    if (prop.type === "number") {
       return (
         <div key={prop.id} className="space-y-2">
           <Label htmlFor={prop.id} className="text-sm font-medium">
@@ -356,15 +925,20 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
           <Input
             id={prop.id}
             type="number"
-            value={value || ''}
-            onChange={(e) => handlePropertyChange(prop.propertyLabel, parseInt(e.target.value) || 0)}
+            value={(value as number) || ""}
+            onChange={(e) =>
+              handlePropertyChange(
+                prop.propertyLabel,
+                Number.parseInt(e.target.value) || 0,
+              )
+            }
             placeholder={`Enter ${prop.propertyLabel.toLowerCase()}...`}
           />
         </div>
       );
     }
 
-    if (prop.type === 'text') {
+    if (prop.type === "text") {
       return (
         <div key={prop.id} className="space-y-2">
           <Label htmlFor={prop.id} className="text-sm font-medium">
@@ -372,8 +946,10 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
           </Label>
           <Input
             id={prop.id}
-            value={value || ''}
-            onChange={(e) => handlePropertyChange(prop.propertyLabel, e.target.value)}
+            value={(value as string) || ""}
+            onChange={(e) =>
+              handlePropertyChange(prop.propertyLabel, e.target.value)
+            }
             placeholder={`Enter ${prop.propertyLabel.toLowerCase()}...`}
           />
         </div>
@@ -383,16 +959,26 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
     return null;
   };
 
-  // Determine if this is a PD Array tool that should show global flags
-  const isPDArrayTool = ['inefficiency', 'block', 'liquidity-pool', 'premium-discount', 'gap', 'equilibrium-ce'].includes(tool.type);
+  // PD array tools still show ICT-specific global flags
+  const isPDArrayTool = [
+    "inefficiency",
+    "block",
+    "liquidity-pool",
+    "premium-discount",
+    "gap",
+    "equilibrium-ce",
+  ].includes(tool.type);
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl">Configure {getToolName(tool.type)}</DialogTitle>
+          <DialogTitle className="text-xl">
+            Configure {getToolName(tool.type)}
+          </DialogTitle>
           <DialogDescription>
-            Set properties for this tool in the <span className="font-semibold">{zone}</span> zone
+            Set properties for this tool in the{" "}
+            <span className="font-semibold">{zone}</span> zone
           </DialogDescription>
         </DialogHeader>
 
@@ -405,13 +991,20 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
 
           <TabsContent value="properties" className="space-y-4 mt-4">
             {customTool ? (
-              <Accordion type="single" collapsible defaultValue="basic" className="w-full">
+              <Accordion
+                type="single"
+                collapsible
+                defaultValue="basic"
+                className="w-full"
+              >
                 <AccordionItem value="basic">
                   <AccordionTrigger className="text-sm font-semibold">
                     Basic Configuration
                   </AccordionTrigger>
                   <AccordionContent className="space-y-4 pt-4">
-                    {customTool.properties.map((prop) => renderCustomPropertyField(prop))}
+                    {customTool.properties.map((prop) =>
+                      renderCustomPropertyField(prop),
+                    )}
                   </AccordionContent>
                 </AccordionItem>
 
@@ -426,8 +1019,10 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
                       </Label>
                       <Textarea
                         id="notes"
-                        value={properties.notes || ''}
-                        onChange={(e) => handlePropertyChange('notes', e.target.value)}
+                        value={(properties.notes as string) || ""}
+                        onChange={(e) =>
+                          handlePropertyChange("notes", e.target.value)
+                        }
                         placeholder="Add any additional notes or context..."
                         rows={3}
                       />
@@ -438,22 +1033,32 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
                       </Label>
                       <Switch
                         id="enabled"
-                        checked={properties.enabled !== false && properties.enabled !== 'false'}
-                        onCheckedChange={(checked) => handlePropertyChange('enabled', checked)}
+                        checked={
+                          properties.enabled !== false &&
+                          properties.enabled !== "false"
+                        }
+                        onCheckedChange={(checked) =>
+                          handlePropertyChange("enabled", checked)
+                        }
                       />
                     </div>
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
             ) : Object.keys(propertyConfig).length > 0 ? (
-              <Accordion type="single" collapsible defaultValue="basic" className="w-full">
+              <Accordion
+                type="single"
+                collapsible
+                defaultValue="basic"
+                className="w-full"
+              >
                 <AccordionItem value="basic">
                   <AccordionTrigger className="text-sm font-semibold">
                     Basic Configuration
                   </AccordionTrigger>
                   <AccordionContent className="space-y-4 pt-4">
                     {Object.entries(propertyConfig).map(([key, config]) =>
-                      renderPropertyField(key, config)
+                      renderPropertyField(key, config),
                     )}
                   </AccordionContent>
                 </AccordionItem>
@@ -469,12 +1074,20 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
                       </p>
                       {!propertyConfig.structuralState && (
                         <div className="space-y-2">
-                          <Label htmlFor="structuralState" className="text-sm font-medium">
+                          <Label
+                            htmlFor="structuralState"
+                            className="text-sm font-medium"
+                          >
                             Structural State
                           </Label>
-                          <Select 
-                            value={properties.structuralState || 'Regular'} 
-                            onValueChange={(val) => handlePropertyChange('structuralState', val)}
+                          <Select
+                            value={
+                              (properties.structuralState as string) ||
+                              "Regular"
+                            }
+                            onValueChange={(val) =>
+                              handlePropertyChange("structuralState", val)
+                            }
                           >
                             <SelectTrigger id="structuralState">
                               <SelectValue placeholder="Select structural state..." />
@@ -491,12 +1104,23 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
                       )}
                       {!propertyConfig.locationVsDealingRange && (
                         <div className="space-y-2">
-                          <Label htmlFor="locationVsDealingRange" className="text-sm font-medium">
+                          <Label
+                            htmlFor="locationVsDealingRange"
+                            className="text-sm font-medium"
+                          >
                             Location vs Dealing Range
                           </Label>
-                          <Select 
-                            value={properties.locationVsDealingRange || 'Inside Discount (0-50%)'} 
-                            onValueChange={(val) => handlePropertyChange('locationVsDealingRange', val)}
+                          <Select
+                            value={
+                              (properties.locationVsDealingRange as string) ||
+                              "Inside Discount (0-50%)"
+                            }
+                            onValueChange={(val) =>
+                              handlePropertyChange(
+                                "locationVsDealingRange",
+                                val,
+                              )
+                            }
                           >
                             <SelectTrigger id="locationVsDealingRange">
                               <SelectValue placeholder="Select location..." />
@@ -526,8 +1150,10 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
                       </Label>
                       <Textarea
                         id="notes"
-                        value={properties.notes || ''}
-                        onChange={(e) => handlePropertyChange('notes', e.target.value)}
+                        value={(properties.notes as string) || ""}
+                        onChange={(e) =>
+                          handlePropertyChange("notes", e.target.value)
+                        }
                         placeholder="Add any additional notes or context..."
                         rows={3}
                       />
@@ -538,8 +1164,13 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
                       </Label>
                       <Switch
                         id="enabled"
-                        checked={properties.enabled !== false && properties.enabled !== 'false'}
-                        onCheckedChange={(checked) => handlePropertyChange('enabled', checked)}
+                        checked={
+                          properties.enabled !== false &&
+                          properties.enabled !== "false"
+                        }
+                        onCheckedChange={(checked) =>
+                          handlePropertyChange("enabled", checked)
+                        }
                       />
                     </div>
                   </AccordionContent>
@@ -547,8 +1178,12 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
               </Accordion>
             ) : (
               <div className="text-center py-12 text-muted-foreground">
-                <p className="text-sm">No specific properties available for this tool type.</p>
-                <p className="text-xs mt-2">Use Interactions and Actions tabs to define behavior.</p>
+                <p className="text-sm">
+                  No specific properties available for this tool type.
+                </p>
+                <p className="text-xs mt-2">
+                  Use Interactions and Actions tabs to define behavior.
+                </p>
               </div>
             )}
           </TabsContent>
@@ -556,13 +1191,16 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
           <TabsContent value="interactions" className="space-y-4 mt-4">
             <div className="space-y-3">
               <div className="space-y-2">
-                <Label htmlFor="new-interaction" className="text-sm font-medium">
+                <Label
+                  htmlFor="new-interaction"
+                  className="text-sm font-medium"
+                >
                   Add Interaction Condition
                 </Label>
                 <div className="flex gap-2">
                   <Textarea
                     id="new-interaction"
-                    placeholder="e.g., When price interacts with inefficiency at 50% level during London session..."
+                    placeholder="e.g., When price interacts with this level during London session..."
                     value={newInteraction}
                     onChange={(e) => setNewInteraction(e.target.value)}
                     rows={2}
@@ -581,9 +1219,12 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
 
               {interactions.length > 0 ? (
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Defined Interactions</Label>
+                  <Label className="text-sm font-medium">
+                    Defined Interactions
+                  </Label>
                   {interactions.map((interaction, index) => (
                     <div
+                      // biome-ignore lint/suspicious/noArrayIndexKey: interactions are ordered strings without stable IDs
                       key={index}
                       className="flex items-start gap-2 p-3 bg-muted rounded-lg border"
                     >
@@ -623,7 +1264,7 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
                 <div className="flex gap-2">
                   <Textarea
                     id="new-action"
-                    placeholder="e.g., Enter long position at block low with stop loss below order block..."
+                    placeholder="e.g., Enter long position when setup confirms at this level..."
                     value={newAction}
                     onChange={(e) => setNewAction(e.target.value)}
                     rows={2}
@@ -645,6 +1286,7 @@ export default function ToolConfigDialog({ tool, zone, getToolName, customToolsL
                   <Label className="text-sm font-medium">Defined Actions</Label>
                   {actions.map((action, index) => (
                     <div
+                      // biome-ignore lint/suspicious/noArrayIndexKey: actions are ordered strings without stable IDs
                       key={index}
                       className="flex items-start gap-2 p-3 bg-muted rounded-lg border"
                     >

@@ -1,13 +1,24 @@
-import { ArrowLeft, TrendingUp, TrendingDown, Activity, DollarSign, Target, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { useGetModel, useGetTradesByModel } from '../hooks/useQueries';
-import { computeMetrics } from '../utils/analytics/metrics';
-import { computeEquityCurve, computeMaxDrawdown } from '../utils/analytics/equityCurve';
-import ModelNotecard from '../components/model/ModelNotecard';
-import ExternalBlobImage from '../components/model/ExternalBlobImage';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import {
+  Activity,
+  AlertCircle,
+  ArrowLeft,
+  DollarSign,
+  Target,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
+import ExternalBlobImage from "../components/model/ExternalBlobImage";
+import ModelNotecard from "../components/model/ModelNotecard";
+import { useGetModel, useGetTradesByModel } from "../hooks/useQueries";
+import {
+  computeEquityCurve,
+  computeMaxDrawdown,
+} from "../utils/analytics/equityCurve";
+import { computeMetrics } from "../utils/analytics/metrics";
 
 interface ModelViewerProps {
   modelId: string;
@@ -15,8 +26,13 @@ interface ModelViewerProps {
 }
 
 export default function ModelViewer({ modelId, onBack }: ModelViewerProps) {
-  const { data: model, isLoading: modelLoading, error: modelError } = useGetModel(modelId);
-  const { data: trades = [], isLoading: tradesLoading } = useGetTradesByModel(modelId);
+  const {
+    data: model,
+    isLoading: modelLoading,
+    error: modelError,
+  } = useGetModel(modelId);
+  const { data: trades = [], isLoading: tradesLoading } =
+    useGetTradesByModel(modelId);
 
   if (modelLoading || tradesLoading) {
     return (
@@ -38,7 +54,8 @@ export default function ModelViewer({ modelId, onBack }: ModelViewerProps) {
           <AlertCircle className="w-16 h-16 text-destructive" />
           <h2 className="text-2xl font-bold">Model Not Found</h2>
           <p className="text-muted-foreground text-center max-w-md">
-            The model you're looking for could not be loaded. It may have been deleted or you may not have permission to view it.
+            The model you're looking for could not be loaded. It may have been
+            deleted or you may not have permission to view it.
           </p>
           <Button onClick={onBack} className="gap-2">
             <ArrowLeft className="w-4 h-4" />
@@ -49,7 +66,7 @@ export default function ModelViewer({ modelId, onBack }: ModelViewerProps) {
     );
   }
 
-  const completedTrades = trades.filter(t => t.is_completed);
+  const completedTrades = trades.filter((t) => t.is_completed);
   const metrics = computeMetrics(completedTrades);
   const equityCurve = computeEquityCurve(completedTrades);
   const maxDrawdown = computeMaxDrawdown(equityCurve);
@@ -64,7 +81,9 @@ export default function ModelViewer({ modelId, onBack }: ModelViewerProps) {
         </Button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{model.name}</h1>
-          <p className="text-muted-foreground">Model performance and trade history</p>
+          <p className="text-muted-foreground">
+            Model performance and trade history
+          </p>
         </div>
       </div>
 
@@ -88,7 +107,9 @@ export default function ModelViewer({ modelId, onBack }: ModelViewerProps) {
                         alt={example.description}
                         className="w-full h-48 object-cover rounded-lg border"
                       />
-                      <p className="text-sm text-muted-foreground">{example.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {example.description}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -106,7 +127,8 @@ export default function ModelViewer({ modelId, onBack }: ModelViewerProps) {
                 <div className="text-center py-8">
                   <Activity className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground">
-                    No completed trades yet for this model. Start logging trades to see performance metrics.
+                    No completed trades yet for this model. Start logging trades
+                    to see performance metrics.
                   </p>
                 </div>
               ) : (
@@ -116,7 +138,9 @@ export default function ModelViewer({ modelId, onBack }: ModelViewerProps) {
                       <DollarSign className="w-4 h-4" />
                       <span className="text-sm">Total P/L</span>
                     </div>
-                    <p className={`text-2xl font-bold ${metrics.totalPL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    <p
+                      className={`text-2xl font-bold ${metrics.totalPL >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
+                    >
                       ${metrics.totalPL.toFixed(2)}
                     </p>
                   </div>
@@ -134,7 +158,9 @@ export default function ModelViewer({ modelId, onBack }: ModelViewerProps) {
                       <Target className="w-4 h-4" />
                       <span className="text-sm">Win Rate</span>
                     </div>
-                    <p className="text-2xl font-bold">{metrics.winRate.toFixed(1)}%</p>
+                    <p className="text-2xl font-bold">
+                      {metrics.winRate.toFixed(1)}%
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {metrics.totalWins}W / {metrics.totalLosses}L
                     </p>
@@ -146,7 +172,9 @@ export default function ModelViewer({ modelId, onBack }: ModelViewerProps) {
                       <span className="text-sm">Profit Factor</span>
                     </div>
                     <p className="text-2xl font-bold">
-                      {metrics.profitFactor === Infinity ? '∞' : metrics.profitFactor.toFixed(2)}
+                      {metrics.profitFactor === Number.POSITIVE_INFINITY
+                        ? "∞"
+                        : metrics.profitFactor.toFixed(2)}
                     </p>
                   </div>
 
@@ -155,7 +183,9 @@ export default function ModelViewer({ modelId, onBack }: ModelViewerProps) {
                       <Activity className="w-4 h-4" />
                       <span className="text-sm">Avg R</span>
                     </div>
-                    <p className={`text-2xl font-bold ${metrics.avgR >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    <p
+                      className={`text-2xl font-bold ${metrics.avgR >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
+                    >
                       {metrics.avgR.toFixed(2)}R
                     </p>
                   </div>
@@ -203,33 +233,62 @@ export default function ModelViewer({ modelId, onBack }: ModelViewerProps) {
               {completedTrades.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-muted-foreground">
-                    No completed trades to display. Trades will appear here once you log outcomes.
+                    No completed trades to display. Trades will appear here once
+                    you log outcomes.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-6">
                   {completedTrades.map((trade) => (
-                    <div key={trade.id} className="space-y-3 pb-6 border-b last:border-b-0">
+                    <div
+                      key={trade.id}
+                      className="space-y-3 pb-6 border-b last:border-b-0"
+                    >
                       <div className="flex items-start justify-between">
                         <div>
                           <h4 className="font-semibold">
                             {trade.direction.toUpperCase()} {trade.asset}
                           </h4>
                           <p className="text-sm text-muted-foreground">
-                            {new Date(Number(trade.created_at) / 1000000).toLocaleDateString()}
+                            {new Date(
+                              Number(trade.created_at) / 1000000,
+                            ).toLocaleDateString()}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className={`font-bold ${trade.bracket_order_outcomes.reduce((sum, o) => sum + (o.closure_price - o.execution_price) * o.size, 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                            {trade.bracket_order_outcomes.reduce((sum, o) => sum + (o.closure_price - o.execution_price) * o.size, 0) >= 0 ? '+' : ''}
-                            ${trade.bracket_order_outcomes.reduce((sum, o) => sum + (o.closure_price - o.execution_price) * o.size, 0).toFixed(2)}
+                          <p
+                            className={`font-bold ${trade.bracket_order_outcomes.reduce((sum, o) => sum + (o.closure_price - (o.execution_price ?? o.closure_price)) * o.size, 0) >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
+                          >
+                            {trade.bracket_order_outcomes.reduce(
+                              (sum, o) =>
+                                sum +
+                                (o.closure_price -
+                                  (o.execution_price ?? o.closure_price)) *
+                                  o.size,
+                              0,
+                            ) >= 0
+                              ? "+"
+                              : ""}
+                            $
+                            {trade.bracket_order_outcomes
+                              .reduce(
+                                (sum, o) =>
+                                  sum +
+                                  (o.closure_price -
+                                    (o.execution_price ?? o.closure_price)) *
+                                    o.size,
+                                0,
+                              )
+                              .toFixed(2)}
                           </p>
                         </div>
                       </div>
 
                       {trade.notes && (
                         <div className="bg-muted/50 p-3 rounded-lg">
-                          <p className="text-sm whitespace-pre-wrap">{trade.notes}</p>
+                          <p className="text-sm whitespace-pre-wrap">
+                            {trade.notes}
+                          </p>
                         </div>
                       )}
 
@@ -237,6 +296,7 @@ export default function ModelViewer({ modelId, onBack }: ModelViewerProps) {
                         <div className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                           {trade.images.map((image, idx) => (
                             <ExternalBlobImage
+                              // biome-ignore lint/suspicious/noArrayIndexKey: image blobs have no stable IDs
                               key={idx}
                               blob={image}
                               alt={`Trade screenshot ${idx + 1}`}

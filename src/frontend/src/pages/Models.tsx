@@ -1,13 +1,28 @@
-import { useState } from 'react';
-import { useGetAllModels, useDeleteModel } from '../hooks/useQueries';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, FileText, Layers } from 'lucide-react';
-import ModelBuilder from '../components/ModelBuilder';
-import ModelViewer from './ModelViewer';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { toast } from 'sonner';
-import type { Model } from '../backend';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Edit, FileText, Layers, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import ModelBuilder from "../components/ModelBuilder";
+import { useDeleteModel, useGetAllModels } from "../hooks/useQueries";
+import type { Model } from "../types";
+import ModelViewer from "./ModelViewer";
 
 export default function Models() {
   const { data: models = [], isLoading } = useGetAllModels();
@@ -22,16 +37,18 @@ export default function Models() {
 
     try {
       await deleteModel.mutateAsync(deletingModel.id);
-      toast.success('Model deleted successfully');
+      toast.success("Model deleted successfully");
       setDeletingModel(null);
     } catch (error) {
-      toast.error('Failed to delete model');
+      toast.error("Failed to delete model");
       console.error(error);
     }
   };
 
   const getToolCount = (model: Model) => {
-    return model.narrative.length + model.framework.length + model.execution.length;
+    return (
+      model.narrative.length + model.framework.length + model.execution.length
+    );
   };
 
   // Show Model Viewer if a model is selected
@@ -61,8 +78,12 @@ export default function Models() {
     <div className="container py-8 px-4 space-y-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-display tracking-tighter">Trading Models</h1>
-          <p className="text-muted-foreground">Create and manage your trading model templates</p>
+          <h1 className="text-3xl font-display tracking-tighter">
+            Trading Models
+          </h1>
+          <p className="text-muted-foreground">
+            Create and manage your trading model templates
+          </p>
         </div>
         <Button onClick={() => setShowBuilder(true)} className="gap-2">
           <Plus className="w-4 h-4" />
@@ -91,17 +112,19 @@ export default function Models() {
           {models.map((model) => {
             const toolCount = getToolCount(model);
             return (
-              <Card 
-                key={model.id} 
+              <Card
+                key={model.id}
                 className="hover:shadow-lg transition-shadow cursor-pointer border-border/50"
                 onClick={() => setSelectedModelId(model.id)}
               >
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardTitle className="text-lg font-display">{model.name}</CardTitle>
+                      <CardTitle className="text-lg font-display">
+                        {model.name}
+                      </CardTitle>
                       <CardDescription className="mt-1 line-clamp-2">
-                        {model.description || 'No description'}
+                        {model.description || "No description"}
                       </CardDescription>
                     </div>
                   </div>
@@ -111,7 +134,7 @@ export default function Models() {
                     <div className="flex items-center gap-2">
                       <Layers className="w-4 h-4 text-muted-foreground" />
                       <span className="text-sm text-muted-foreground">
-                        {toolCount} tool{toolCount !== 1 ? 's' : ''} configured
+                        {toolCount} tool{toolCount !== 1 ? "s" : ""} configured
                       </span>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
@@ -119,19 +142,25 @@ export default function Models() {
                         <div className="text-lg font-bold text-chart-1 font-display">
                           {model.narrative.length}
                         </div>
-                        <div className="text-xs text-muted-foreground">Narrative</div>
+                        <div className="text-xs text-muted-foreground">
+                          Context
+                        </div>
                       </div>
                       <div className="text-center p-2 bg-chart-2/10 rounded border border-chart-2/20">
                         <div className="text-lg font-bold text-chart-2 font-display">
                           {model.framework.length}
                         </div>
-                        <div className="text-xs text-muted-foreground">Framework</div>
+                        <div className="text-xs text-muted-foreground">
+                          Setup
+                        </div>
                       </div>
                       <div className="text-center p-2 bg-chart-3/10 rounded border border-chart-3/20">
                         <div className="text-lg font-bold text-chart-3 font-display">
                           {model.execution.length}
                         </div>
-                        <div className="text-xs text-muted-foreground">Execution</div>
+                        <div className="text-xs text-muted-foreground">
+                          Execution
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -179,18 +208,27 @@ export default function Models() {
         />
       )}
 
-      <AlertDialog open={!!deletingModel} onOpenChange={() => setDeletingModel(null)}>
+      <AlertDialog
+        open={!!deletingModel}
+        onOpenChange={() => setDeletingModel(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-display">Delete Model</AlertDialogTitle>
+            <AlertDialogTitle className="font-display">
+              Delete Model
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{deletingModel?.name}"? This action cannot be undone.
+              Are you sure you want to delete "{deletingModel?.name}"? This
+              action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deleteModel.isPending ? 'Deleting...' : 'Delete'}
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteModel.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

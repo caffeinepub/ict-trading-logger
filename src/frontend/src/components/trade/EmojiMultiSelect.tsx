@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
 
 interface EmojiMultiSelectProps {
   selected: string[];
@@ -7,19 +7,22 @@ interface EmojiMultiSelectProps {
 }
 
 const MOOD_EMOJIS = [
-  { emoji: '😊', label: 'Happy' },
-  { emoji: '😰', label: 'Anxious' },
-  { emoji: '😤', label: 'Frustrated' },
-  { emoji: '😌', label: 'Calm' },
-  { emoji: '🤔', label: 'Thoughtful' },
-  { emoji: '😎', label: 'Confident' },
-  { emoji: '😟', label: 'Worried' },
-  { emoji: '🥳', label: 'Excited' },
-  { emoji: '😴', label: 'Tired' },
-  { emoji: '🤯', label: 'Overwhelmed' },
+  { emoji: "😊", label: "Happy" },
+  { emoji: "😰", label: "Anxious" },
+  { emoji: "😤", label: "Frustrated" },
+  { emoji: "😌", label: "Calm" },
+  { emoji: "🤔", label: "Thoughtful" },
+  { emoji: "😎", label: "Confident" },
+  { emoji: "😟", label: "Worried" },
+  { emoji: "🥳", label: "Excited" },
+  { emoji: "😴", label: "Tired" },
+  { emoji: "🤯", label: "Overwhelmed" },
 ];
 
-export default function EmojiMultiSelect({ selected, onChange }: EmojiMultiSelectProps) {
+export default function EmojiMultiSelect({
+  selected,
+  onChange,
+}: EmojiMultiSelectProps) {
   const handleToggle = (emoji: string) => {
     // For now, only allow single selection (can be changed to multi-select if needed)
     if (selected.includes(emoji)) {
@@ -34,7 +37,7 @@ export default function EmojiMultiSelect({ selected, onChange }: EmojiMultiSelec
       {MOOD_EMOJIS.map(({ emoji, label }) => (
         <Button
           key={emoji}
-          variant={selected.includes(emoji) ? 'default' : 'outline'}
+          variant={selected.includes(emoji) ? "default" : "outline"}
           size="lg"
           onClick={() => handleToggle(emoji)}
           className="text-2xl h-16 flex flex-col items-center justify-center gap-1"

@@ -1,12 +1,18 @@
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, BarChart3, FileText, Shield, Zap } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { BarChart3, FileText, Shield, TrendingUp, Zap } from "lucide-react";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
 
 export default function LoginPrompt() {
   const { login, loginStatus } = useInternetIdentity();
 
-  const isLoggingIn = loginStatus === 'logging-in';
+  const isLoggingIn = loginStatus === "logging-in";
 
   return (
     <main className="flex-1 flex items-center justify-center px-4 py-12">
@@ -19,7 +25,8 @@ export default function LoginPrompt() {
             modLogic
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Professional trading model analytics for ICT methodology practitioners. Build models, track trades, and analyze performance.
+            Professional trading model analytics for ICT methodology
+            practitioners. Build models, track trades, and analyze performance.
           </p>
           <div className="pt-4">
             <Button
@@ -28,7 +35,7 @@ export default function LoginPrompt() {
               disabled={isLoggingIn}
               className="text-lg px-8 py-6 bg-primary hover:bg-primary/90 text-primary-foreground font-display"
             >
-              {isLoggingIn ? 'Connecting...' : 'Get Started'}
+              {isLoggingIn ? "Connecting..." : "Get Started"}
             </Button>
           </div>
         </div>
@@ -41,7 +48,8 @@ export default function LoginPrompt() {
               </div>
               <CardTitle className="font-display">Model Builder</CardTitle>
               <CardDescription>
-                Create detailed trading models with ICT tools across narrative, framework, and execution zones
+                Create detailed trading models with ICT tools across narrative,
+                framework, and execution zones
               </CardDescription>
             </CardHeader>
           </Card>
@@ -53,7 +61,8 @@ export default function LoginPrompt() {
               </div>
               <CardTitle className="font-display">Trade Journal</CardTitle>
               <CardDescription>
-                Log trades with bracket orders, track adherence, and document your execution with screenshots
+                Log trades with bracket orders, track adherence, and document
+                your execution with screenshots
               </CardDescription>
             </CardHeader>
           </Card>
@@ -65,7 +74,8 @@ export default function LoginPrompt() {
               </div>
               <CardTitle className="font-display">Analytics</CardTitle>
               <CardDescription>
-                Comprehensive performance metrics, equity curves, session analysis, and Monte Carlo simulations
+                Comprehensive performance metrics, equity curves, session
+                analysis, and Monte Carlo simulations
               </CardDescription>
             </CardHeader>
           </Card>
@@ -80,7 +90,9 @@ export default function LoginPrompt() {
               <div>
                 <h3 className="font-display text-lg mb-1">Secure & Private</h3>
                 <p className="text-sm text-muted-foreground">
-                  Your trading data is stored securely on the Internet Computer blockchain. Login with Internet Identity for privacy-first authentication.
+                  Your trading data is stored securely on the Internet Computer
+                  blockchain. Login with Internet Identity for privacy-first
+                  authentication.
                 </p>
               </div>
             </div>

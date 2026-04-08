@@ -1,7 +1,11 @@
-import type { Trade } from '../../backend';
-import { computeTradePLFromOutcomes, computeTradeRRFromOutcomes, isTradeWinner } from '../trade/tradeMetrics';
+import type { Trade } from "../../types";
+import {
+  computeTradePLFromOutcomes,
+  computeTradeRRFromOutcomes,
+  isTradeWinner,
+} from "../trade/tradeMetrics";
 
-export type VolatilityBucket = 'Low' | 'Medium' | 'High';
+export type VolatilityBucket = "Low" | "Medium" | "High";
 
 export interface VolatilityMetrics {
   bucket: VolatilityBucket;
@@ -20,7 +24,7 @@ export function computeVolatilityProxy(trade: Trade): number {
   const entry = trade.bracket_order.entry_price;
   const primarySL = trade.bracket_order.primary_stop_loss;
   const stopDistance = Math.abs(entry - primarySL);
-  
+
   // Normalize by entry price to get percentage distance
   return (stopDistance / entry) * 100;
 }
@@ -30,25 +34,27 @@ export function computeVolatilityProxy(trade: Trade): number {
  */
 export function getVolatilityBucket(trade: Trade): VolatilityBucket {
   const volProxy = computeVolatilityProxy(trade);
-  
+
   // Thresholds (can be adjusted)
-  if (volProxy < 1.0) return 'Low';
-  if (volProxy < 2.0) return 'Medium';
-  return 'High';
+  if (volProxy < 1.0) return "Low";
+  if (volProxy < 2.0) return "Medium";
+  return "High";
 }
 
 /**
  * Computes metrics per volatility bucket
  */
 export function computeVolatilityMetrics(trades: Trade[]): VolatilityMetrics[] {
-  const completedTrades = trades.filter(t => t.is_completed);
-  
-  const buckets: VolatilityBucket[] = ['Low', 'Medium', 'High'];
+  const completedTrades = trades.filter((t) => t.is_completed);
+
+  const buckets: VolatilityBucket[] = ["Low", "Medium", "High"];
   const metrics: VolatilityMetrics[] = [];
-  
-  buckets.forEach(bucket => {
-    const bucketTrades = completedTrades.filter(t => getVolatilityBucket(t) === bucket);
-    
+
+  for (const bucket of buckets) {
+    const bucketTrades = completedTrades.filter(
+      (t) => getVolatilityBucket(t) === bucket,
+    );
+
     if (bucketTrades.length === 0) {
       metrics.push({
         bucket,
@@ -59,15 +65,20 @@ export function computeVolatilityMetrics(trades: Trade[]): VolatilityMetrics[] {
         avgR: 0,
         rDistribution: [],
       });
-      return;
+      continue;
     }
-    
-    const wins = bucketTrades.filter(t => isTradeWinner(t)).length;
+
+    const wins = bucketTrades.filter((t) => isTradeWinner(t)).length;
     const winRate = (wins / bucketTrades.length) * 100;
-    const totalPL = bucketTrades.reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
-    const avgR = bucketTrades.reduce((sum, t) => sum + computeTradeRRFromOutcomes(t), 0) / bucketTrades.length;
-    const rValues = bucketTrades.map(t => computeTradeRRFromOutcomes(t));
-    
+    const totalPL = bucketTrades.reduce(
+      (sum, t) => sum + computeTradePLFromOutcomes(t),
+      0,
+    );
+    const avgR =
+      bucketTrades.reduce((sum, t) => sum + computeTradeRRFromOutcomes(t), 0) /
+      bucketTrades.length;
+    const rValues = bucketTrades.map((t) => computeTradeRRFromOutcomes(t));
+
     metrics.push({
       bucket,
       totalTrades: bucketTrades.length,
@@ -77,7 +88,7 @@ export function computeVolatilityMetrics(trades: Trade[]): VolatilityMetrics[] {
       avgR,
       rDistribution: rValues,
     });
-  });
-  
+  }
+
   return metrics;
 }

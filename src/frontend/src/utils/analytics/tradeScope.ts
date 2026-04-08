@@ -1,4 +1,4 @@
-import type { Trade, Model } from '../../backend';
+import type { Model, Trade } from "../../types";
 
 /**
  * Session mapping based on UTC hours:
@@ -6,15 +6,15 @@ import type { Trade, Model } from '../../backend';
  * - London: 08:00-16:00 UTC
  * - NY: 16:00-24:00 UTC
  */
-export type Session = 'Asia' | 'London' | 'NY' | 'All';
+export type Session = "Asia" | "London" | "NY" | "All";
 
 export function inferSession(timestamp: bigint): Session {
   const date = new Date(Number(timestamp) / 1000000);
   const hour = date.getUTCHours();
-  
-  if (hour >= 0 && hour < 8) return 'Asia';
-  if (hour >= 8 && hour < 16) return 'London';
-  return 'NY';
+
+  if (hour >= 0 && hour < 8) return "Asia";
+  if (hour >= 8 && hour < 16) return "London";
+  return "NY";
 }
 
 export interface FilterOptions {
@@ -23,31 +23,33 @@ export interface FilterOptions {
   adherenceThreshold?: number;
 }
 
-export function filterTrades(
-  trades: Trade[],
-  options: FilterOptions
-): Trade[] {
+export function filterTrades(trades: Trade[], options: FilterOptions): Trade[] {
   let filtered = trades;
 
   // Filter by model
-  if (options.modelId && options.modelId !== 'all') {
-    filtered = filtered.filter(t => t.model_id === options.modelId);
+  if (options.modelId && options.modelId !== "all") {
+    filtered = filtered.filter((t) => t.model_id === options.modelId);
   }
 
   // Filter by session
-  if (options.session && options.session !== 'All') {
-    filtered = filtered.filter(t => inferSession(t.created_at) === options.session);
+  if (options.session && options.session !== "All") {
+    filtered = filtered.filter(
+      (t) => inferSession(t.created_at) === options.session,
+    );
   }
 
   // Filter by adherence threshold
-  if (options.adherenceThreshold !== undefined && options.adherenceThreshold !== null) {
+  if (
+    options.adherenceThreshold !== undefined &&
+    options.adherenceThreshold !== null
+  ) {
     const threshold = options.adherenceThreshold;
-    filtered = filtered.filter(t => t.adherence_score >= threshold);
+    filtered = filtered.filter((t) => (t.adherence_score ?? 0) >= threshold);
   }
 
   return filtered;
 }
 
 export function getCompletedTrades(trades: Trade[]): Trade[] {
-  return trades.filter(t => t.is_completed);
+  return trades.filter((t) => t.is_completed);
 }

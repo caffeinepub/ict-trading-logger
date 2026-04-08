@@ -1,5 +1,8 @@
-import type { Trade } from '../../backend';
-import { computeTradePLFromOutcomes, isTradeWinner } from '../trade/tradeMetrics';
+import type { Trade } from "../../types";
+import {
+  computeTradePLFromOutcomes,
+  isTradeWinner,
+} from "../trade/tradeMetrics";
 
 export interface AdherenceMetrics {
   winRate: number;
@@ -20,31 +23,41 @@ export interface AdherenceComparisonResult {
   plDelta: number;
 }
 
-export function filterByAdherence(trades: Trade[], minAdherence: number): Trade[] {
-  return trades.filter(t => t.is_completed && t.adherence_score >= minAdherence);
+export function filterByAdherence(
+  trades: Trade[],
+  minAdherence: number,
+): Trade[] {
+  return trades.filter(
+    (t) => t.is_completed && (t.adherence_score ?? 0) >= minAdherence,
+  );
 }
 
 export function computeAdherenceMetrics(trades: Trade[]): AdherenceMetrics {
-  const completedTrades = trades.filter(t => t.is_completed);
-  
+  const completedTrades = trades.filter((t) => t.is_completed);
+
   if (completedTrades.length === 0) {
     return { winRate: 0, totalPL: 0 };
   }
 
-  const wins = completedTrades.filter(t => isTradeWinner(t)).length;
+  const wins = completedTrades.filter((t) => isTradeWinner(t)).length;
   const winRate = (wins / completedTrades.length) * 100;
-  const pl = completedTrades.reduce((sum, t) => sum + computeTradePLFromOutcomes(t), 0);
+  const pl = completedTrades.reduce(
+    (sum, t) => sum + computeTradePLFromOutcomes(t),
+    0,
+  );
 
   return { winRate, totalPL: pl };
 }
 
 export function computeAdherenceComparison(
   trades: Trade[],
-  threshold: number
+  threshold: number,
 ): AdherenceComparisonResult {
-  const completedTrades = trades.filter(t => t.is_completed);
+  const completedTrades = trades.filter((t) => t.is_completed);
   const high = filterByAdherence(trades, threshold);
-  const low = completedTrades.filter(t => t.adherence_score < threshold);
+  const _low = completedTrades.filter(
+    (t) => (t.adherence_score ?? 0) < threshold,
+  );
 
   const highMetrics = computeAdherenceMetrics(high);
   const lowMetrics = computeAdherenceMetrics(completedTrades);

@@ -1,5 +1,5 @@
-import type { Trade } from '../../backend';
-import { computeTradePLFromOutcomes } from '../trade/tradeMetrics';
+import type { Trade } from "../../types";
+import { computeTradePLFromOutcomes } from "../trade/tradeMetrics";
 
 export interface EquityPoint {
   index: number;
@@ -9,7 +9,7 @@ export interface EquityPoint {
 
 export function computeEquityCurve(trades: Trade[]): EquityPoint[] {
   const completedTrades = trades
-    .filter(t => t.is_completed)
+    .filter((t) => t.is_completed)
     .sort((a, b) => Number(a.created_at - b.created_at));
 
   let runningEquity = 0;

@@ -1,22 +1,39 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Switch } from '@/components/ui/switch';
-import { Save, TrendingUp, TrendingDown, DollarSign, Target, Clock } from 'lucide-react';
-import type { Trade, BracketOrderOutcome } from '../../backend';
-import { ClosureType as ClosureTypeEnum, ExternalBlob } from '../../backend';
-import BracketOutcomeSelector from './BracketOutcomeSelector';
-import ManualClosePriceField from './ManualClosePriceField';
-import EmojiMultiSelect from './EmojiMultiSelect';
-import TradeImagesField from './TradeImagesField';
-import { deriveBracketClosurePrice, computeTradePL } from '../../utils/trade/outcomeMath';
-import type { BracketOutcomeState } from '../../utils/trade/outcomeModel';
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Clock,
+  DollarSign,
+  Save,
+  Target,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import type { ExternalBlob } from "../../backend";
+import type { BracketOrderOutcome, Trade } from "../../types";
+import { type ClosureType, ClosureTypeEnum } from "../../types";
+import {
+  computeTradePL,
+  deriveBracketClosurePrice,
+} from "../../utils/trade/outcomeMath";
+import type { BracketOutcomeState } from "../../utils/trade/outcomeModel";
+import BracketOutcomeSelector from "./BracketOutcomeSelector";
+import EmojiMultiSelect from "./EmojiMultiSelect";
+import ManualClosePriceField from "./ManualClosePriceField";
+import TradeImagesField from "./TradeImagesField";
 
 interface TradeOutcomeEditorProps {
   trade: Trade;
@@ -25,16 +42,23 @@ interface TradeOutcomeEditorProps {
   isSaving?: boolean;
 }
 
-export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving = false }: TradeOutcomeEditorProps) {
-  const [bracketStates, setBracketStates] = useState<Map<string, BracketOutcomeState>>(new Map());
-  const [notes, setNotes] = useState('');
+export default function TradeOutcomeEditor({
+  trade,
+  onSave,
+  onCancel,
+  isSaving = false,
+}: TradeOutcomeEditorProps) {
+  const [bracketStates, setBracketStates] = useState<
+    Map<string, BracketOutcomeState>
+  >(new Map());
+  const [notes, setNotes] = useState("");
   const [mood, setMood] = useState<string[]>([]);
   const [images, setImages] = useState<ExternalBlob[]>([]);
   const [wouldTakeAgain, setWouldTakeAgain] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  
+
   // Trade close time state
-  const [closeDateTime, setCloseDateTime] = useState('');
+  const [closeDateTime, setCloseDateTime] = useState("");
   const [useCurrentTime, setUseCurrentTime] = useState(true);
 
   // Update current time when toggle is enabled
@@ -44,13 +68,13 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
         const now = new Date();
         // Format as datetime-local input value (YYYY-MM-DDTHH:mm)
         const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const day = String(now.getDate()).padStart(2, "0");
+        const hours = String(now.getHours()).padStart(2, "0");
+        const minutes = String(now.getMinutes()).padStart(2, "0");
         setCloseDateTime(`${year}-${month}-${day}T${hours}:${minutes}`);
       };
-      
+
       updateTime();
       const interval = setInterval(updateTime, 1000);
       return () => clearInterval(interval);
@@ -59,67 +83,80 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
 
   // Load trade data
   useEffect(() => {
-    setNotes(trade.notes || '');
+    setNotes(trade.notes || "");
     setMood(trade.mood ? [trade.mood] : []);
     setImages(trade.images || []);
     setWouldTakeAgain(trade.would_take_again || false);
-    
+
     // Initialize close time from trade if present
     if (trade.close_time) {
       const closeDate = new Date(Number(trade.close_time) / 1000000);
       const year = closeDate.getFullYear();
-      const month = String(closeDate.getMonth() + 1).padStart(2, '0');
-      const day = String(closeDate.getDate()).padStart(2, '0');
-      const hours = String(closeDate.getHours()).padStart(2, '0');
-      const minutes = String(closeDate.getMinutes()).padStart(2, '0');
+      const month = String(closeDate.getMonth() + 1).padStart(2, "0");
+      const day = String(closeDate.getDate()).padStart(2, "0");
+      const hours = String(closeDate.getHours()).padStart(2, "0");
+      const minutes = String(closeDate.getMinutes()).padStart(2, "0");
       setCloseDateTime(`${year}-${month}-${day}T${hours}:${minutes}`);
       setUseCurrentTime(false);
     } else {
       // Default to current time for new outcomes
       setUseCurrentTime(true);
     }
-    
+
     const newStates = new Map<string, BracketOutcomeState>();
-    
+
     if (trade.is_completed && trade.bracket_order_outcomes.length > 0) {
       // Load existing outcomes for completed trades
-      trade.bracket_order_outcomes.forEach(outcome => {
+      for (const outcome of trade.bracket_order_outcomes) {
         newStates.set(outcome.bracket_id, {
           selectedOutcome: outcome.closure_type,
-          manualClosePrice: outcome.closure_type === ClosureTypeEnum.manual_close ? outcome.closure_price : undefined,
+          manualClosePrice:
+            outcome.closure_type === ClosureTypeEnum.manual_close
+              ? outcome.closure_price
+              : undefined,
         });
-      });
+      }
     } else {
       // Initialize with unselected state (null) for non-completed trades
-      trade.bracket_order.bracket_groups.forEach(bg => {
+      for (const bg of trade.bracket_order.bracket_groups) {
         newStates.set(bg.bracket_id, {
           selectedOutcome: null,
           manualClosePrice: undefined,
         });
-      });
+      }
     }
-    
+
     setBracketStates(newStates);
   }, [trade]);
 
-  const handleOutcomeChange = (bracketId: string, outcome: ClosureTypeEnum) => {
-    setBracketStates(prev => {
+  const handleOutcomeChange = (bracketId: string, outcome: ClosureType) => {
+    setBracketStates((prev) => {
       const newStates = new Map(prev);
-      const currentState = newStates.get(bracketId) || { selectedOutcome: null };
+      const currentState = newStates.get(bracketId) || {
+        selectedOutcome: null,
+      };
       newStates.set(bracketId, {
         ...currentState,
         selectedOutcome: outcome,
-        manualClosePrice: outcome === ClosureTypeEnum.manual_close ? currentState.manualClosePrice : undefined,
+        manualClosePrice:
+          outcome === ClosureTypeEnum.manual_close
+            ? currentState.manualClosePrice
+            : undefined,
       });
       return newStates;
     });
     setValidationError(null);
   };
 
-  const handleManualPriceChange = (bracketId: string, price: number | undefined) => {
-    setBracketStates(prev => {
+  const handleManualPriceChange = (
+    bracketId: string,
+    price: number | undefined,
+  ) => {
+    setBracketStates((prev) => {
       const newStates = new Map(prev);
-      const currentState = newStates.get(bracketId) || { selectedOutcome: ClosureTypeEnum.manual_close };
+      const currentState = newStates.get(bracketId) || {
+        selectedOutcome: ClosureTypeEnum.manual_close,
+      };
       newStates.set(bracketId, {
         ...currentState,
         manualClosePrice: price,
@@ -132,27 +169,27 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
   const calculateOutcome = () => {
     const outcomes: BracketOrderOutcome[] = [];
     let hasUnselected = false;
-    
-    trade.bracket_order.bracket_groups.forEach(bg => {
+
+    for (const bg of trade.bracket_order.bracket_groups) {
       const state = bracketStates.get(bg.bracket_id);
       if (!state || state.selectedOutcome === null) {
         hasUnselected = true;
-        return;
+        continue;
       }
-      
+
       const closurePrice = deriveBracketClosurePrice(
         trade,
         bg,
         state.selectedOutcome,
-        state.manualClosePrice
+        state.manualClosePrice,
       );
-      
+
       // Skip if closure price is null (shouldn't happen if selectedOutcome is not null)
       if (closurePrice === null) {
         hasUnselected = true;
-        return;
+        continue;
       }
-      
+
       outcomes.push({
         bracket_id: bg.bracket_id,
         closure_type: state.selectedOutcome,
@@ -160,17 +197,22 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
         execution_price: closurePrice,
         size: bg.size,
         outcome_time: BigInt(Date.now() * 1000000),
-        bracket_group: bg,
       });
-    });
-    
+    }
+
     // If any bracket is unselected, return safe defaults
     if (hasUnselected || outcomes.length === 0) {
-      return { outcomes: [], totalPL: 0, finalPLPct: 0, rr: 0, hasUnselected: true };
+      return {
+        outcomes: [],
+        totalPL: 0,
+        finalPLPct: 0,
+        rr: 0,
+        hasUnselected: true,
+      };
     }
-    
+
     const { totalPL, finalPLPct, rr } = computeTradePL(trade, outcomes);
-    
+
     return { outcomes, totalPL, finalPLPct, rr, hasUnselected: false };
   };
 
@@ -182,45 +224,52 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
         unselectedBrackets.push(bracketId);
       }
     });
-    
+
     if (unselectedBrackets.length > 0) {
-      setValidationError('Please select an outcome for all brackets before saving');
+      setValidationError(
+        "Please select an outcome for all brackets before saving",
+      );
       return;
     }
-    
+
     // Validate manual close prices
     const invalidManualClose: string[] = [];
     bracketStates.forEach((state, bracketId) => {
       if (state.selectedOutcome === ClosureTypeEnum.manual_close) {
-        if (state.manualClosePrice === undefined || state.manualClosePrice === 0) {
+        if (
+          state.manualClosePrice === undefined ||
+          state.manualClosePrice === 0
+        ) {
           invalidManualClose.push(bracketId);
         }
       }
     });
-    
+
     if (invalidManualClose.length > 0) {
-      setValidationError('Please enter manual close prices for all brackets set to Manual Close');
+      setValidationError(
+        "Please enter manual close prices for all brackets set to Manual Close",
+      );
       return;
     }
 
     // Validate close date/time
     if (!closeDateTime) {
-      setValidationError('Please enter a trade close date and time');
+      setValidationError("Please enter a trade close date and time");
       return;
     }
 
     const { outcomes } = calculateOutcome();
-    
+
     // Convert closeDateTime to nanoseconds timestamp
     const closeDate = new Date(closeDateTime);
     const closeTimeNanos = BigInt(closeDate.getTime() * 1000000);
-    
+
     // Update trade with outcomes, reflection fields, and close_time
     await onSave({
       ...trade,
       bracket_order_outcomes: outcomes,
       notes,
-      mood: mood.length > 0 ? mood[0] : '',
+      mood: mood.length > 0 ? mood[0] : "",
       images,
       would_take_again: wouldTakeAgain,
       is_completed: true,
@@ -238,26 +287,35 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
         <CardHeader>
           <CardTitle>Trade Information</CardTitle>
           <CardDescription>
-            {trade.asset} {trade.direction.toUpperCase()} • Entry: ${trade.bracket_order.entry_price.toFixed(2)}
+            {trade.asset} {trade.direction.toUpperCase()} • Entry: $
+            {trade.bracket_order.entry_price.toFixed(2)}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Position Size</p>
-              <p className="font-semibold">{trade.bracket_order.position_size.toFixed(2)}</p>
+              <p className="font-semibold">
+                {trade.bracket_order.position_size.toFixed(2)}
+              </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Primary SL</p>
-              <p className="font-semibold">${trade.bracket_order.primary_stop_loss.toFixed(2)}</p>
+              <p className="font-semibold">
+                ${trade.bracket_order.primary_stop_loss.toFixed(2)}
+              </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Brackets</p>
-              <p className="font-semibold">{trade.bracket_order.bracket_groups.length}</p>
+              <p className="font-semibold">
+                {trade.bracket_order.bracket_groups.length}
+              </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Adherence</p>
-              <p className="font-semibold">{(trade.adherence_score * 100).toFixed(0)}%</p>
+              <p className="font-semibold">
+                {((trade.adherence_score ?? 0) * 100).toFixed(0)}%
+              </p>
             </div>
           </div>
         </CardContent>
@@ -274,16 +332,18 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
           </CardHeader>
           <CardContent>
             {hasUnselected ? (
-              <div className="text-2xl font-bold text-muted-foreground">
-                --
-              </div>
+              <div className="text-2xl font-bold text-muted-foreground">--</div>
             ) : (
-              <div className={`text-2xl font-bold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+              <div
+                className={`text-2xl font-bold ${isProfit ? "text-green-500" : "text-red-500"}`}
+              >
                 ${totalPL.toFixed(2)}
               </div>
             )}
             <p className="text-sm text-muted-foreground mt-1">
-              {hasUnselected ? 'Select outcomes' : `${finalPLPct.toFixed(1)}% of risk`}
+              {hasUnselected
+                ? "Select outcomes"
+                : `${finalPLPct.toFixed(1)}% of risk`}
             </p>
           </CardContent>
         </Card>
@@ -297,24 +357,26 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
           </CardHeader>
           <CardContent>
             {hasUnselected ? (
-              <div className="text-2xl font-bold text-muted-foreground">
-                --
-              </div>
+              <div className="text-2xl font-bold text-muted-foreground">--</div>
             ) : (
-              <div className={`text-2xl font-bold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+              <div
+                className={`text-2xl font-bold ${isProfit ? "text-green-500" : "text-red-500"}`}
+              >
                 {rr.toFixed(2)}R
               </div>
             )}
-            <p className="text-sm text-muted-foreground mt-1">
-              Risk-to-reward
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">Risk-to-reward</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
-              {isProfit ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              {isProfit ? (
+                <TrendingUp className="w-4 h-4" />
+              ) : (
+                <TrendingDown className="w-4 h-4" />
+              )}
               Result
             </CardDescription>
           </CardHeader>
@@ -324,13 +386,14 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
                 Pending
               </Badge>
             ) : (
-              <Badge variant={isProfit ? 'default' : 'destructive'} className="text-lg px-3 py-1">
-                {isProfit ? 'Win' : 'Loss'}
+              <Badge
+                variant={isProfit ? "default" : "destructive"}
+                className="text-lg px-3 py-1"
+              >
+                {isProfit ? "Win" : "Loss"}
               </Badge>
             )}
-            <p className="text-sm text-muted-foreground mt-2">
-              Trade outcome
-            </p>
+            <p className="text-sm text-muted-foreground mt-2">Trade outcome</p>
           </CardContent>
         </Card>
       </div>
@@ -352,7 +415,7 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
               trade,
               bg,
               state.selectedOutcome,
-              state.manualClosePrice
+              state.manualClosePrice,
             );
 
             return (
@@ -361,7 +424,8 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
                   <div className="min-w-0 flex-1">
                     <h4 className="font-semibold">Bracket {index + 1}</h4>
                     <p className="text-sm text-muted-foreground break-words">
-                      Size: {bg.size} | TP: ${bg.take_profit_price.toFixed(2)} | SL: ${bg.stop_loss_price.toFixed(2)}
+                      Size: {bg.size} | TP: ${bg.take_profit_price.toFixed(2)} |
+                      SL: ${bg.stop_loss_price.toFixed(2)}
                     </p>
                   </div>
                   {closurePrice !== null && (
@@ -373,13 +437,17 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
 
                 <BracketOutcomeSelector
                   selectedOutcome={state.selectedOutcome}
-                  onOutcomeChange={(outcome) => handleOutcomeChange(bg.bracket_id, outcome)}
+                  onOutcomeChange={(outcome) =>
+                    handleOutcomeChange(bg.bracket_id, outcome)
+                  }
                 />
 
                 {state.selectedOutcome === ClosureTypeEnum.manual_close && (
                   <ManualClosePriceField
                     value={state.manualClosePrice}
-                    onChange={(price) => handleManualPriceChange(bg.bracket_id, price)}
+                    onChange={(price) =>
+                      handleManualPriceChange(bg.bracket_id, price)
+                    }
                   />
                 )}
 
@@ -414,18 +482,12 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
 
           <div className="space-y-2">
             <Label>Mood</Label>
-            <EmojiMultiSelect
-              selected={mood}
-              onChange={setMood}
-            />
+            <EmojiMultiSelect selected={mood} onChange={setMood} />
           </div>
 
           <div className="space-y-2">
             <Label>Screenshots</Label>
-            <TradeImagesField
-              images={images}
-              onChange={setImages}
-            />
+            <TradeImagesField images={images} onChange={setImages} />
           </div>
 
           <div className="flex items-center space-x-2">
@@ -451,9 +513,7 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
             <Clock className="w-5 h-5" />
             Trade Close Time
           </CardTitle>
-          <CardDescription>
-            Specify when this trade was closed
-          </CardDescription>
+          <CardDescription>Specify when this trade was closed</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center space-x-2">
@@ -484,9 +544,9 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
               className="w-full"
             />
             <p className="text-sm text-muted-foreground">
-              {useCurrentTime 
-                ? 'Time is automatically set to current time' 
-                : 'Manually set the trade close time'}
+              {useCurrentTime
+                ? "Time is automatically set to current time"
+                : "Manually set the trade close time"}
             </p>
           </div>
         </CardContent>
@@ -502,13 +562,22 @@ export default function TradeOutcomeEditor({ trade, onSave, onCancel, isSaving =
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-3 justify-end">
         {onCancel && (
-          <Button variant="outline" onClick={onCancel} disabled={isSaving} className="w-full sm:w-auto">
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            disabled={isSaving}
+            className="w-full sm:w-auto"
+          >
             Cancel
           </Button>
         )}
-        <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto gap-2">
+        <Button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="w-full sm:w-auto gap-2"
+        >
           <Save className="w-4 h-4" />
-          {isSaving ? 'Saving...' : 'Save Outcome'}
+          {isSaving ? "Saving..." : "Save Outcome"}
         </Button>
       </div>
     </div>

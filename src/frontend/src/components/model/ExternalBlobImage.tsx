@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { ExternalBlob } from '../../backend';
+import { useState } from "react";
+import type { ExternalBlob } from "../../backend";
 
 interface ExternalBlobImageProps {
   blob: ExternalBlob;
@@ -7,7 +7,11 @@ interface ExternalBlobImageProps {
   className?: string;
 }
 
-export default function ExternalBlobImage({ blob, alt, className = '' }: ExternalBlobImageProps) {
+export default function ExternalBlobImage({
+  blob,
+  alt,
+  className = "",
+}: ExternalBlobImageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
@@ -24,7 +28,9 @@ export default function ExternalBlobImage({ blob, alt, className = '' }: Externa
   return (
     <div className="relative">
       {isLoading && (
-        <div className={`absolute inset-0 flex items-center justify-center bg-muted ${className}`}>
+        <div
+          className={`absolute inset-0 flex items-center justify-center bg-muted ${className}`}
+        >
           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       )}

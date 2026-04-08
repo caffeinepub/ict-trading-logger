@@ -1,4 +1,4 @@
-import type { Model, ModelCondition, ToolConfig } from '../../backend';
+import type { Model, ModelCondition, ToolConfig } from "../../types";
 
 /**
  * Maps selected tool observations from Live Setup Identifier onto a model's full condition list.
@@ -6,7 +6,10 @@ import type { Model, ModelCondition, ToolConfig } from '../../backend';
  */
 export function mapObservationsToModelConditions(
   model: Model,
-  selectedObservations: { toolType: string; zone: 'narrative' | 'framework' | 'execution' }[]
+  selectedObservations: {
+    toolType: string;
+    zone: "narrative" | "framework" | "execution";
+  }[],
 ): ModelCondition[] {
   const conditions: ModelCondition[] = [];
 
@@ -15,58 +18,60 @@ export function mapObservationsToModelConditions(
     try {
       const props = JSON.parse(tool.properties);
       const parts: string[] = [];
-      
+
       parts.push(tool.type);
-      
+
       if (props.type) parts.push(props.type);
       if (props.direction) parts.push(props.direction);
-      if (props.timeframe) parts.push(`${props.timeframe.value}${props.timeframe.unit}`);
-      if (props.structuralState && props.structuralState !== 'Regular') parts.push(props.structuralState);
-      
-      return parts.join(' - ');
+      if (props.timeframe)
+        parts.push(`${props.timeframe.value}${props.timeframe.unit}`);
+      if (props.structuralState && props.structuralState !== "Regular")
+        parts.push(props.structuralState);
+
+      return parts.join(" - ");
     } catch {
       return `${tool.type} condition`;
     }
   };
 
   // Process narrative tools
-  model.narrative.forEach(tool => {
+  for (const tool of model.narrative) {
     const isObserved = selectedObservations.some(
-      obs => obs.toolType === tool.type && obs.zone === 'narrative'
+      (obs) => obs.toolType === tool.type && obs.zone === "narrative",
     );
     conditions.push({
       id: tool.id,
       description: extractToolDescription(tool),
-      zone: 'narrative',
-      isChecked: isObserved
+      zone: "narrative",
+      isChecked: isObserved,
     });
-  });
+  }
 
   // Process framework tools
-  model.framework.forEach(tool => {
+  for (const tool of model.framework) {
     const isObserved = selectedObservations.some(
-      obs => obs.toolType === tool.type && obs.zone === 'framework'
+      (obs) => obs.toolType === tool.type && obs.zone === "framework",
     );
     conditions.push({
       id: tool.id,
       description: extractToolDescription(tool),
-      zone: 'framework',
-      isChecked: isObserved
+      zone: "framework",
+      isChecked: isObserved,
     });
-  });
+  }
 
   // Process execution tools
-  model.execution.forEach(tool => {
+  for (const tool of model.execution) {
     const isObserved = selectedObservations.some(
-      obs => obs.toolType === tool.type && obs.zone === 'execution'
+      (obs) => obs.toolType === tool.type && obs.zone === "execution",
     );
     conditions.push({
       id: tool.id,
       description: extractToolDescription(tool),
-      zone: 'execution',
-      isChecked: isObserved
+      zone: "execution",
+      isChecked: isObserved,
     });
-  });
+  }
 
   return conditions;
 }
@@ -77,7 +82,7 @@ export function mapObservationsToModelConditions(
  */
 export function calculateModelAdherence(conditions: ModelCondition[]): number {
   if (conditions.length === 0) return 0;
-  
-  const checkedCount = conditions.filter(c => c.isChecked).length;
+
+  const checkedCount = conditions.filter((c) => c.isChecked).length;
   return (checkedCount / conditions.length) * 100;
 }

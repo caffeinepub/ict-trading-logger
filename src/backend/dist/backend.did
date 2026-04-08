@@ -1,0 +1,263 @@
+type _ImmutableObjectStorageRefillResult = 
+ record {
+   success: opt bool;
+   topped_up_amount: opt nat;
+ };
+type _ImmutableObjectStorageRefillInformation = record {
+                                                  proposed_top_up_amount:
+                                                   opt nat;};
+type _ImmutableObjectStorageCreateCertificateResult = 
+ record {
+   blob_hash: text;
+   method: text;
+ };
+type UserRole = 
+ variant {
+   admin;
+   guest;
+   user;
+ };
+type UserProfile = record {name: text;};
+type Trade = 
+ record {
+   adherence_score: float64;
+   asset: text;
+   bracket_order: BracketOrder;
+   bracket_order_outcomes: vec BracketOrderOutcome;
+   calculation_method: CalculationMethod;
+   close_time: opt int;
+   created_at: int;
+   direction: text;
+   id: text;
+   images: vec ExternalBlob;
+   is_completed: bool;
+   mistakeTags: vec text;
+   model_conditions: vec ModelCondition;
+   model_id: text;
+   mood: text;
+   notes: text;
+   owner: principal;
+   position_sizer: PositionSizer;
+   quickTags: vec text;
+   strengthTags: vec text;
+   value_per_unit: float64;
+   would_take_again: bool;
+ };
+type ToolConfig = 
+ record {
+   actions: vec text;
+   id: text;
+   interactions: vec text;
+   position: nat;
+   properties: text;
+   "type": text;
+   zone: text;
+ };
+type PropertyType = 
+ variant {
+   number;
+   select;
+   "text";
+   toggle;
+ };
+type PositionSizer = 
+ record {
+   account_capital: float64;
+   allow_fractional_size: bool;
+   asset_type: text;
+   contract_lot_unit: text;
+   entry_price: float64;
+   primary_stop_loss: float64;
+   risk_percentage: float64;
+   value_per_point: float64;
+ };
+type ModelCondition = 
+ record {
+   description: text;
+   id: text;
+   isChecked: bool;
+   zone: text;
+ };
+type Model = 
+ record {
+   created_at: int;
+   description: text;
+   example_images: vec ExampleImage;
+   execution: vec ToolConfig;
+   framework: vec ToolConfig;
+   id: text;
+   name: text;
+   narrative: vec ToolConfig;
+   owner: principal;
+ };
+type ExternalBlob = blob;
+type ExampleImage = 
+ record {
+   "blob": ExternalBlob;
+   created_at: int;
+   description: text;
+   id: text;
+ };
+type CustomToolDefinition = 
+ record {
+   created_at: int;
+   id: text;
+   name: text;
+   owner: principal;
+   properties: vec CustomProperty;
+   updated_at: int;
+ };
+type CustomProperty = 
+ record {
+   default_value: text;
+   id: text;
+   options: vec text;
+   propertyLabel: text;
+   "type": PropertyType;
+ };
+type ClosureType = 
+ variant {
+   break_even;
+   manual_close;
+   stop_loss;
+   take_profit;
+ };
+type CalculationMethod = 
+ variant {
+   point;
+   tick;
+ };
+type BracketOrderOutcome = 
+ record {
+   bracket_group: BracketGroup;
+   bracket_id: text;
+   closure_price: float64;
+   closure_type: ClosureType;
+   execution_price: float64;
+   outcome_time: int;
+   size: float64;
+ };
+type BracketOrder = 
+ record {
+   bracket_groups: vec BracketGroup;
+   calculation_method: text;
+   entry_price: float64;
+   position_size: float64;
+   position_sizer: PositionSizer;
+   primary_stop_loss: float64;
+   value_per_unit: float64;
+ };
+type BracketGroup = 
+ record {
+   bracket_id: text;
+   size: float64;
+   sl_modified_by_user: bool;
+   stop_loss_price: float64;
+   take_profit_price: float64;
+ };
+service : {
+  _immutableObjectStorageBlobsAreLive: (hashes: vec blob) -> (vec bool) query;
+  _immutableObjectStorageBlobsToDelete: () -> (vec blob) query;
+  _immutableObjectStorageConfirmBlobDeletion: (blobs: vec blob) -> ();
+  _immutableObjectStorageCreateCertificate: (blobHash: text) ->
+   (_ImmutableObjectStorageCreateCertificateResult);
+  _immutableObjectStorageRefillCashier: (refillInformation:
+   opt _ImmutableObjectStorageRefillInformation) ->
+   (_ImmutableObjectStorageRefillResult);
+  _immutableObjectStorageUpdateGatewayPrincipals: () -> ();
+  _initializeAccessControl: () -> ();
+  assignCallerUserRole: (user: principal, role: UserRole) -> ();
+  calculateAdherenceScore: (conditions: vec ModelCondition) ->
+   (float64) query;
+  createCustomTool: (tool: CustomToolDefinition) -> (text);
+  createModel: (model: Model) -> ();
+  createTrade: (trade: Trade) -> ();
+  deleteCustomTool: (id: text) -> (text);
+  deleteModel: (id: text) -> ();
+  deleteTrade: (id: text) -> ();
+  duplicateCustomTool: (tool_id: text, new_name: text) -> (text);
+  getAdherenceAnalytics: () ->
+   (record {
+      avg_adherence: float64;
+      total_trades: nat;
+      win_rate_high_adherence: float64;
+      win_rate_low_adherence: float64;
+    }) query;
+  getAllCustomTools: () -> (vec CustomToolDefinition) query;
+  getAllModels: () -> (vec Model) query;
+  getAllTrades: () -> (vec Trade) query;
+  getCallerUserProfile: () -> (opt UserProfile) query;
+  getCallerUserRole: () -> (UserRole) query;
+  getCurrentTime: () -> (int) query;
+  getCustomTool: (id: text) -> (opt CustomToolDefinition) query;
+  getCustomToolCount: () -> (nat) query;
+  getModel: (id: text) -> (opt Model) query;
+  getModelConditions: (model_id: text) -> (vec ModelCondition) query;
+  getTotalAllocation: (bracket_groups: vec BracketGroup) -> (float64) query;
+  getTrade: (id: text) -> (opt Trade) query;
+  getTradesByAdherenceRange: (min_score: float64, max_score: float64) ->
+   (vec Trade) query;
+  getTradesByAsset: (asset: text) -> (vec Trade) query;
+  getTradesByDateRange: (start: int, end: int) -> (vec Trade) query;
+  getTradesByModel: (model_id: text) -> (vec Trade) query;
+  getUserProfile: (user: principal) -> (opt UserProfile) query;
+  initializeAccessControl: () -> ();
+  isCallerAdmin: () -> (bool) query;
+  mapTradeConditionsToModel: (trade_conditions: vec ModelCondition,
+   model_conditions: vec ModelCondition) -> (vec ModelCondition) query;
+  saveBracketOrderOutcome: (trade_id: text, bracket_outcome:
+   BracketOrderOutcome) ->
+   (record {
+      updatedAnalytics:
+       record {
+         avgPL: float64;
+         avgRR: float64;
+         bracketOrderValidation:
+          variant {
+            invalid_event_combination;
+            invalid_stop_loss_adjustment;
+            invalid_take_profit_order;
+            valid;
+          };
+         totalPL: float64;
+         totalRR: float64;
+         totalTrades: float64;
+         totalWins: float64;
+         winRate: float64;
+       };
+      updatedTrade: Trade;
+    });
+  saveCallerUserProfile: (profile: UserProfile) -> ();
+  updateCustomTool: (tool: CustomToolDefinition) -> (text);
+  updateModel: (model: Model) -> ();
+  updateModelAnalytics: (model_id: text) ->
+   (record {
+      avgPL: float64;
+      avgRR: float64;
+      bracketOrderValidation:
+       variant {
+         invalid_event_combination;
+         invalid_stop_loss_adjustment;
+         invalid_take_profit_order;
+         valid;
+       };
+      totalPL: float64;
+      totalRR: float64;
+      totalTrades: float64;
+      totalWins: float64;
+      winRate: float64;
+    });
+  updateTrade: (trade: Trade) -> ();
+  validateBracketGroups: (bracket_groups: vec BracketGroup, direction:
+   text) -> (bool) query;
+  validateBracketOrderRules: (bracket_order_outcome: BracketOrderOutcome,
+   original_bracket_order: BracketOrder) ->
+   (variant {
+      invalid_event_combination;
+      invalid_stop_loss_adjustment;
+      invalid_take_profit_order;
+      valid;
+    }) query;
+  validateOutcomeSequence: (bracket_order_outcomes:
+   vec BracketOrderOutcome) -> (bool) query;
+}

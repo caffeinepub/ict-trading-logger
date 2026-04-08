@@ -1,4 +1,4 @@
-import type { ClosureType } from '../../backend';
+import type { ClosureType } from "../../types";
 
 /**
  * Frontend editing model for bracket outcomes, supporting unselected state (null) for new trades
@@ -13,7 +13,7 @@ export interface BracketOutcomeState {
  */
 export function mapBracketStateToOutcome(
   bracketId: string,
-  state: BracketOutcomeState
+  state: BracketOutcomeState,
 ): {
   bracket_id: string;
   closure_type: ClosureType;
@@ -22,7 +22,7 @@ export function mapBracketStateToOutcome(
   if (state.selectedOutcome === null) {
     return null;
   }
-  
+
   return {
     bracket_id: bracketId,
     closure_type: state.selectedOutcome,
@@ -35,10 +35,10 @@ export function mapBracketStateToOutcome(
  */
 export function mapOutcomeToBracketState(
   closureType: ClosureType,
-  closurePrice: number
+  closurePrice: number,
 ): BracketOutcomeState {
   return {
     selectedOutcome: closureType,
-    manualClosePrice: closureType === 'manual_close' ? closurePrice : undefined,
+    manualClosePrice: closureType === "manual_close" ? closurePrice : undefined,
   };
 }

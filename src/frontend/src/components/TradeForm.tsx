@@ -1,28 +1,71 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useCreateTrade, useUpdateTrade, useGetCurrentTime, useGetModelConditions } from '../hooks/useQueries';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { toast } from 'sonner';
-import { CalendarIcon, Plus, Trash2, AlertCircle, Info, Calculator, ArrowDown, X } from 'lucide-react';
-import { format } from 'date-fns';
-import { CalculationMethod } from '../backend';
-import type { Model, Trade, ModelCondition, ToolConfig, BracketGroup, BracketOrder, PositionSizer } from '../backend';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Progress } from "@/components/ui/progress";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { format } from "date-fns";
+import {
+  AlertCircle,
+  ArrowDown,
+  Calculator,
+  CalendarIcon,
+  Info,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import {
+  useCreateTrade,
+  useGetCurrentTime,
+  useGetModelConditions,
+  useUpdateTrade,
+} from "../hooks/useQueries";
+import { CalculationMethod } from "../types";
+import type {
+  BracketGroup,
+  BracketOrder,
+  Model,
+  ModelCondition,
+  PositionSizer,
+  ToolConfig,
+  Trade,
+} from "../types";
 
 interface TradeFormProps {
   trade?: Trade | null;
@@ -49,64 +92,84 @@ interface ScenarioOutcome {
 
 // Helper function to safely parse float values
 const safeParseFloat = (value: string | number): number => {
-  if (value === '' || value === undefined || value === null) return 0;
-  const parsed = typeof value === 'string' ? parseFloat(value) : value;
-  return isNaN(parsed) || !isFinite(parsed) ? 0 : parsed;
+  if (value === "" || value === undefined || value === null) return 0;
+  const parsed = typeof value === "string" ? Number.parseFloat(value) : value;
+  return Number.isNaN(parsed) || !Number.isFinite(parsed) ? 0 : parsed;
 };
 
 // Helper function to validate numeric input
 const isValidNumericInput = (value: string): boolean => {
-  if (value === '') return true;
+  if (value === "") return true;
   return /^\d*\.?\d*$/.test(value);
 };
 
 // Helper to check if a number is valid for calculations
 const isValidNumber = (value: number): boolean => {
-  return typeof value === 'number' && isFinite(value) && !isNaN(value);
+  return (
+    typeof value === "number" && Number.isFinite(value) && !Number.isNaN(value)
+  );
 };
 
 // Helper to extract readable description from tool properties
-const extractToolDescription = (tool: ToolConfig): string => {
+const _extractToolDescription = (tool: ToolConfig): string => {
   try {
     const props = JSON.parse(tool.properties);
     const parts: string[] = [];
-    
+
     parts.push(tool.type);
-    
+
     if (props.type) parts.push(props.type);
     if (props.direction) parts.push(props.direction);
-    if (props.timeframe) parts.push(`${props.timeframe.value}${props.timeframe.unit}`);
-    if (props.structuralState && props.structuralState !== 'Regular') parts.push(props.structuralState);
-    
-    return parts.join(' - ');
+    if (props.timeframe)
+      parts.push(`${props.timeframe.value}${props.timeframe.unit}`);
+    if (props.structuralState && props.structuralState !== "Regular")
+      parts.push(props.structuralState);
+
+    return parts.join(" - ");
   } catch {
     return `${tool.type} condition`;
   }
 };
 
-export default function TradeForm({ trade, models, onClose, preloadedModelId, preloadedObservations }: TradeFormProps) {
-  const [modelId, setModelId] = useState('');
-  const [asset, setAsset] = useState('');
+export default function TradeForm({
+  trade,
+  models,
+  onClose,
+  preloadedModelId,
+  preloadedObservations,
+}: TradeFormProps) {
+  const [modelId, setModelId] = useState("");
+  const [asset, setAsset] = useState("");
   const [date, setDate] = useState<Date>(new Date());
-  const [direction, setDirection] = useState<'long' | 'short'>('long');
+  const [direction, setDirection] = useState<"long" | "short">("long");
   const [modelConditions, setModelConditions] = useState<ModelCondition[]>([]);
 
   // Primary Position Sizing Parameters
-  const [entryPrice, setEntryPrice] = useState('');
-  const [primaryStopLoss, setPrimaryStopLoss] = useState('');
-  const [accountCapital, setAccountCapital] = useState('10000');
-  const [riskPercent, setRiskPercent] = useState('1');
-  const [riskDollar, setRiskDollar] = useState('');
+  const [entryPrice, setEntryPrice] = useState("");
+  const [primaryStopLoss, setPrimaryStopLoss] = useState("");
+  const [accountCapital, setAccountCapital] = useState("10000");
+  const [riskPercent, setRiskPercent] = useState("1");
+  const [riskDollar, setRiskDollar] = useState("");
   const [useRiskDollar, setUseRiskDollar] = useState(false);
-  const [assetType, setAssetType] = useState<'futures' | 'forex' | 'crypto' | 'stocks'>('futures');
-  const [contractLotUnit, setContractLotUnit] = useState('contract');
+  const [assetType, setAssetType] = useState<
+    "futures" | "forex" | "crypto" | "stocks"
+  >("futures");
+  const [contractLotUnit, setContractLotUnit] = useState("contract");
   const [allowFractional, setAllowFractional] = useState(false);
-  const [calculationMethod, setCalculationMethod] = useState<'tick' | 'point'>('point');
-  const [valuePerUnit, setValuePerUnit] = useState('5');
+  const [calculationMethod, setCalculationMethod] = useState<"tick" | "point">(
+    "point",
+  );
+  const [valuePerUnit, setValuePerUnit] = useState("5");
 
   // OCO Bracket Groups with sl_modified_by_user flag
   const [bracketGroups, setBracketGroups] = useState<BracketGroup[]>([
-    { bracket_id: crypto.randomUUID(), size: 0, take_profit_price: 0, stop_loss_price: 0, sl_modified_by_user: false }
+    {
+      bracket_id: crypto.randomUUID(),
+      size: 0,
+      take_profit_price: 0,
+      stop_loss_price: 0,
+      sl_modified_by_user: false,
+    },
   ]);
 
   // Track if we're in edit mode and have loaded the trade data
@@ -115,14 +178,14 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
 
   const createTrade = useCreateTrade();
   const updateTrade = useUpdateTrade();
-  const { data: currentTime } = useGetCurrentTime();
+  useGetCurrentTime();
   const { identity } = useInternetIdentity();
-  
-  const { 
-    data: fetchedConditions, 
-    isLoading: conditionsLoading, 
+
+  const {
+    data: fetchedConditions,
+    isLoading: conditionsLoading,
     isError: conditionsError,
-    isFetching: conditionsFetching 
+    isFetching: conditionsFetching,
   } = useGetModelConditions(modelId);
 
   // Auto-derived total position size from sum of all bracket quantities
@@ -145,99 +208,137 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
   useEffect(() => {
     if (modelId && fetchedConditions && fetchedConditions.length > 0) {
       // If we're in edit mode and have persisted conditions, merge the isChecked states
-      if (isEditMode && trade && trade.model_conditions && trade.model_conditions.length > 0) {
+      if (
+        isEditMode &&
+        trade &&
+        trade.model_conditions &&
+        trade.model_conditions.length > 0
+      ) {
         // Create a map of persisted condition states
         const persistedStates = new Map(
-          trade.model_conditions.map(c => [c.id, c.isChecked])
+          trade.model_conditions.map((c) => [c.id, c.isChecked]),
         );
-        
+
         // Merge fetched conditions with persisted checkbox states
-        const mergedConditions = fetchedConditions.map(condition => ({
+        const mergedConditions = fetchedConditions.map((condition) => ({
           ...condition,
-          isChecked: persistedStates.get(condition.id) ?? condition.isChecked
+          isChecked: persistedStates.get(condition.id) ?? condition.isChecked,
         }));
-        
+
         setModelConditions(mergedConditions);
-      } else if (!trade && preloadedObservations && preloadedObservations.length > 0) {
+      } else if (
+        !trade &&
+        preloadedObservations &&
+        preloadedObservations.length > 0
+      ) {
         // For new trades with preloaded observations, only check qualifying conditions
-        const preloadedIds = new Set(preloadedObservations.map(obs => obs.id));
-        
-        const mergedConditions = fetchedConditions.map(condition => ({
+        const preloadedIds = new Set(
+          preloadedObservations.map((obs) => obs.id),
+        );
+
+        const mergedConditions = fetchedConditions.map((condition) => ({
           ...condition,
-          isChecked: preloadedIds.has(condition.id)
+          isChecked: preloadedIds.has(condition.id),
         }));
-        
+
         setModelConditions(mergedConditions);
       } else {
         // For new trades without preloaded data, use fetched conditions as-is
         setModelConditions(fetchedConditions);
       }
-    } else if (modelId && !conditionsLoading && !conditionsFetching && fetchedConditions) {
+    } else if (
+      modelId &&
+      !conditionsLoading &&
+      !conditionsFetching &&
+      fetchedConditions
+    ) {
       setModelConditions(fetchedConditions);
     }
-  }, [fetchedConditions, modelId, conditionsLoading, conditionsFetching, isEditMode, trade, preloadedObservations]);
+  }, [
+    fetchedConditions,
+    modelId,
+    conditionsLoading,
+    conditionsFetching,
+    isEditMode,
+    trade,
+    preloadedObservations,
+  ]);
 
   // Load trade data for editing - load exactly as stored, no recalculation
   useEffect(() => {
     if (trade && !hasLoadedTradeData) {
       setIsEditMode(true);
-      
+
       // Load basic trade info
       setModelId(trade.model_id);
-      setAsset(trade.asset);
+      setAsset(trade.asset ?? "");
       setDate(new Date(Number(trade.created_at) / 1000000));
-      setDirection(trade.direction as 'long' | 'short');
-      
+      setDirection(trade.direction as "long" | "short");
+
       // Load stored values exactly as they are from bracket_order
       setEntryPrice(trade.bracket_order.entry_price.toString());
       setPrimaryStopLoss(trade.bracket_order.primary_stop_loss.toString());
-      setCalculationMethod(trade.calculation_method === CalculationMethod.tick ? 'tick' : 'point');
+      setCalculationMethod(
+        trade.calculation_method === CalculationMethod.tick ? "tick" : "point",
+      );
       setValuePerUnit(trade.value_per_unit.toString());
-      
+
       // Load Position Sizer data from persisted position_sizer field
       if (trade.position_sizer) {
-        setRiskPercent(trade.position_sizer.risk_percentage.toString());
-        setAccountCapital(trade.position_sizer.account_capital.toString());
-        setAssetType(trade.position_sizer.asset_type as 'futures' | 'forex' | 'crypto' | 'stocks');
-        setContractLotUnit(trade.position_sizer.contract_lot_unit);
-        setAllowFractional(trade.position_sizer.allow_fractional_size);
+        setRiskPercent((trade.position_sizer.risk_percentage ?? 0).toString());
+        setAccountCapital(
+          (trade.position_sizer.account_capital ?? 0).toString(),
+        );
+        setAssetType(
+          (trade.position_sizer.asset_type ?? "futures") as
+            | "futures"
+            | "forex"
+            | "crypto"
+            | "stocks",
+        );
+        setContractLotUnit(trade.position_sizer.contract_lot_unit ?? "");
+        setAllowFractional(trade.position_sizer.allow_fractional_size ?? false);
       }
-      
+
       // Load bracket groups exactly as stored - preserve all fields including sl_modified_by_user
       if (trade.bracket_order.bracket_groups.length > 0) {
-        setBracketGroups(trade.bracket_order.bracket_groups.map(bg => ({
-          bracket_id: bg.bracket_id,
-          size: bg.size,
-          take_profit_price: bg.take_profit_price,
-          stop_loss_price: bg.stop_loss_price,
-          sl_modified_by_user: bg.sl_modified_by_user ?? false
-        })));
+        setBracketGroups(
+          trade.bracket_order.bracket_groups.map((bg) => ({
+            bracket_id: bg.bracket_id,
+            size: bg.size,
+            take_profit_price: bg.take_profit_price,
+            stop_loss_price: bg.stop_loss_price,
+            sl_modified_by_user: bg.sl_modified_by_user ?? false,
+          })),
+        );
       }
-      
+
       // Load model conditions with persisted checkbox states
       if (trade.model_conditions && trade.model_conditions.length > 0) {
         setModelConditions(trade.model_conditions);
       }
-      
+
       setHasLoadedTradeData(true);
     }
   }, [trade, hasLoadedTradeData]);
 
   useEffect(() => {
-    if (assetType === 'crypto') {
+    if (assetType === "crypto") {
       setAllowFractional(true);
     }
   }, [assetType]);
 
   const adherenceScore = useMemo(() => {
     if (modelConditions.length === 0) return 0;
-    const checkedCount = modelConditions.filter(c => c.isChecked).length;
+    const checkedCount = modelConditions.filter((c) => c.isChecked).length;
     return (checkedCount / modelConditions.length) * 100;
   }, [modelConditions]);
 
   const toggleCondition = (conditionId: string) => {
-    setModelConditions(prev =>
-      prev.map(c => c.id === conditionId ? { ...c, isChecked: !c.isChecked } : c)
+    setModelConditions((prev) =>
+      prev.map((c) =>
+        c.id === conditionId ? { ...c, isChecked: !c.isChecked } : c,
+      ),
     );
   };
 
@@ -245,30 +346,35 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
   const primaryStopLossValid = useMemo(() => {
     const entry = safeParseFloat(entryPrice);
     const primarySL = safeParseFloat(primaryStopLoss);
-    
-    if (entry === 0 || primarySL === 0 || !isValidNumber(entry) || !isValidNumber(primarySL)) {
-      return { valid: true, message: '' }; // Don't show error if values are not yet entered
+
+    if (
+      entry === 0 ||
+      primarySL === 0 ||
+      !isValidNumber(entry) ||
+      !isValidNumber(primarySL)
+    ) {
+      return { valid: true, message: "" }; // Don't show error if values are not yet entered
     }
 
-    if (direction === 'long') {
+    if (direction === "long") {
       // For long trades, Primary Stop-Loss must be less than Entry Price
       if (primarySL >= entry) {
-        return { 
-          valid: false, 
-          message: 'For long trades, stop-loss must be below entry price' 
+        return {
+          valid: false,
+          message: "For long trades, stop-loss must be below entry price",
         };
       }
     } else {
       // For short trades, Primary Stop-Loss must be greater than Entry Price
       if (primarySL <= entry) {
-        return { 
-          valid: false, 
-          message: 'For short trades, stop-loss must be above entry price' 
+        return {
+          valid: false,
+          message: "For short trades, stop-loss must be above entry price",
         };
       }
     }
 
-    return { valid: true, message: '' };
+    return { valid: true, message: "" };
   }, [entryPrice, primaryStopLoss, direction]);
 
   // Calculate total position size based on risk and primary stop-loss
@@ -283,9 +389,17 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
     const primarySL = safeParseFloat(primaryStopLoss);
     const capital = safeParseFloat(accountCapital);
     const valuePerUnitNum = safeParseFloat(valuePerUnit);
-    
-    if (entry === 0 || primarySL === 0 || capital === 0 || valuePerUnitNum === 0 || 
-        !isValidNumber(entry) || !isValidNumber(primarySL) || !isValidNumber(capital) || !isValidNumber(valuePerUnitNum)) {
+
+    if (
+      entry === 0 ||
+      primarySL === 0 ||
+      capital === 0 ||
+      valuePerUnitNum === 0 ||
+      !isValidNumber(entry) ||
+      !isValidNumber(primarySL) ||
+      !isValidNumber(capital) ||
+      !isValidNumber(valuePerUnitNum)
+    ) {
       return 0;
     }
 
@@ -304,33 +418,47 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
     const stopDistance = Math.abs(entry - primarySL);
     let size = riskAmount / (stopDistance * valuePerUnitNum);
 
-    if (assetType === 'futures' && !allowFractional) {
+    if (assetType === "futures" && !allowFractional) {
       size = Math.floor(size);
-    } else if (assetType === 'crypto') {
+    } else if (assetType === "crypto") {
       size = Math.round(size * 100000000) / 100000000;
     } else {
       size = Math.round(size * 100) / 100;
     }
 
     return isValidNumber(size) ? size : 0;
-  }, [entryPrice, primaryStopLoss, accountCapital, riskPercent, riskDollar, useRiskDollar, assetType, allowFractional, valuePerUnit, primaryStopLossValid]);
+  }, [
+    entryPrice,
+    primaryStopLoss,
+    accountCapital,
+    riskPercent,
+    riskDollar,
+    useRiskDollar,
+    assetType,
+    allowFractional,
+    valuePerUnit,
+    primaryStopLossValid,
+  ]);
 
   // Manual bracket population function
   const populateBracketSizes = () => {
     if (calculatedPositionSize > 0 && bracketGroups.length > 0) {
       const evenSize = calculatedPositionSize / bracketGroups.length;
-      const roundedSize = assetType === 'futures' && !allowFractional 
-        ? Math.floor(evenSize) 
-        : Math.round(evenSize * 100) / 100;
-      
-      setBracketGroups(prev => prev.map(group => ({
-        ...group,
-        size: roundedSize
-      })));
-      
-      toast.success('Bracket sizes populated from calculated position size');
+      const roundedSize =
+        assetType === "futures" && !allowFractional
+          ? Math.floor(evenSize)
+          : Math.round(evenSize * 100) / 100;
+
+      setBracketGroups((prev) =>
+        prev.map((group) => ({
+          ...group,
+          size: roundedSize,
+        })),
+      );
+
+      toast.success("Bracket sizes populated from calculated position size");
     } else if (calculatedPositionSize === 0) {
-      toast.error('Cannot populate: calculated position size is zero');
+      toast.error("Cannot populate: calculated position size is zero");
     }
   };
 
@@ -339,34 +467,40 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
   useEffect(() => {
     if (!isEditMode) {
       const primarySLValue = safeParseFloat(primaryStopLoss);
-      
+
       // Only sync if Primary Stop-Loss validation passes
-      if (primarySLValue !== 0 && isValidNumber(primarySLValue) && primaryStopLossValid.valid) {
-        setBracketGroups(prev => prev.map(group => {
-          // Only update SL if sl_modified_by_user is false
-          if (!group.sl_modified_by_user) {
-            return {
-              ...group,
-              stop_loss_price: primarySLValue
-            };
-          }
-          return group;
-        }));
+      if (
+        primarySLValue !== 0 &&
+        isValidNumber(primarySLValue) &&
+        primaryStopLossValid.valid
+      ) {
+        setBracketGroups((prev) =>
+          prev.map((group) => {
+            // Only update SL if sl_modified_by_user is false
+            if (!group.sl_modified_by_user) {
+              return {
+                ...group,
+                stop_loss_price: primarySLValue,
+              };
+            }
+            return group;
+          }),
+        );
       }
     }
   }, [primaryStopLoss, primaryStopLossValid, isEditMode]);
 
   const addBracketGroup = () => {
     const primarySLValue = safeParseFloat(primaryStopLoss);
-    
-    const newBracket: BracketGroup = { 
-      bracket_id: crypto.randomUUID(), 
-      size: 0, 
-      take_profit_price: 0, 
+
+    const newBracket: BracketGroup = {
+      bracket_id: crypto.randomUUID(),
+      size: 0,
+      take_profit_price: 0,
       stop_loss_price: primarySLValue, // Initialize with current Primary SL
-      sl_modified_by_user: false // New brackets default to false
+      sl_modified_by_user: false, // New brackets default to false
     };
-    
+
     const newGroups = [...bracketGroups, newBracket];
     setBracketGroups(newGroups);
   };
@@ -378,24 +512,28 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
     }
   };
 
-  const updateBracketGroup = (index: number, field: keyof BracketGroup, value: string) => {
-    if (field === 'bracket_id' || field === 'sl_modified_by_user') return;
+  const updateBracketGroup = (
+    index: number,
+    field: keyof BracketGroup,
+    value: string,
+  ) => {
+    if (field === "bracket_id" || field === "sl_modified_by_user") return;
     if (!isValidNumericInput(value)) return;
-    
+
     const newGroups = [...bracketGroups];
-    const numValue = value === '' ? 0 : safeParseFloat(value);
-    
+    const numValue = value === "" ? 0 : safeParseFloat(value);
+
     // If user manually edits the SL field, set sl_modified_by_user to true
-    if (field === 'stop_loss_price') {
-      newGroups[index] = { 
-        ...newGroups[index], 
+    if (field === "stop_loss_price") {
+      newGroups[index] = {
+        ...newGroups[index],
         [field]: numValue,
-        sl_modified_by_user: true // Mark as manually modified
+        sl_modified_by_user: true, // Mark as manually modified
       };
     } else {
       newGroups[index] = { ...newGroups[index], [field]: numValue };
     }
-    
+
     setBracketGroups(newGroups);
   };
 
@@ -417,9 +555,17 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
     const primarySL = safeParseFloat(primaryStopLoss);
     const capital = safeParseFloat(accountCapital);
     const valuePerUnitNum = safeParseFloat(valuePerUnit);
-    
-    if (entry === 0 || primarySL === 0 || capital === 0 || valuePerUnitNum === 0 || 
-        !isValidNumber(entry) || !isValidNumber(primarySL) || !isValidNumber(capital) || !isValidNumber(valuePerUnitNum)) {
+
+    if (
+      entry === 0 ||
+      primarySL === 0 ||
+      capital === 0 ||
+      valuePerUnitNum === 0 ||
+      !isValidNumber(entry) ||
+      !isValidNumber(primarySL) ||
+      !isValidNumber(capital) ||
+      !isValidNumber(valuePerUnitNum)
+    ) {
       return {
         recommendedSize: 0,
         riskDollars: 0,
@@ -450,9 +596,9 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
     const stopDistance = Math.abs(entry - primarySL);
     let size = riskAmount / (stopDistance * valuePerUnitNum);
 
-    if (assetType === 'futures' && !allowFractional) {
+    if (assetType === "futures" && !allowFractional) {
       size = Math.floor(size);
-    } else if (assetType === 'crypto') {
+    } else if (assetType === "crypto") {
       size = Math.round(size * 100000000) / 100000000;
     } else {
       size = Math.round(size * 100) / 100;
@@ -468,18 +614,38 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
       potentialReward: 0,
       potentialRR: 0,
     };
-  }, [entryPrice, primaryStopLoss, accountCapital, riskPercent, riskDollar, useRiskDollar, assetType, allowFractional, valuePerUnit, primaryStopLossValid]);
+  }, [
+    entryPrice,
+    primaryStopLoss,
+    accountCapital,
+    riskPercent,
+    riskDollar,
+    useRiskDollar,
+    assetType,
+    allowFractional,
+    valuePerUnit,
+    primaryStopLossValid,
+  ]);
 
   // Scenario Analysis
   const [scenarios, setScenarios] = useState<ScenarioOutcome[]>([]);
 
-  const calculateScenario = (scenarioDescription: string, bracketOutcomes: { bracketIndex: number; outcome: string }[]): ScenarioOutcome => {
+  const calculateScenario = (
+    scenarioDescription: string,
+    bracketOutcomes: { bracketIndex: number; outcome: string }[],
+  ): ScenarioOutcome => {
     const entry = safeParseFloat(entryPrice);
     const primarySL = safeParseFloat(primaryStopLoss);
     const valuePerUnitNum = safeParseFloat(valuePerUnit);
-    
-    if (entry === 0 || primarySL === 0 || valuePerUnitNum === 0 || 
-        !isValidNumber(entry) || !isValidNumber(primarySL) || !isValidNumber(valuePerUnitNum)) {
+
+    if (
+      entry === 0 ||
+      primarySL === 0 ||
+      valuePerUnitNum === 0 ||
+      !isValidNumber(entry) ||
+      !isValidNumber(primarySL) ||
+      !isValidNumber(valuePerUnitNum)
+    ) {
       return {
         scenarioDescription,
         bracketOutcomes,
@@ -495,26 +661,26 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
     let totalRisk = 0;
     let totalReward = 0;
 
-    bracketOutcomes.forEach(({ bracketIndex, outcome }) => {
+    for (const { bracketIndex, outcome } of bracketOutcomes) {
       const bracket = bracketGroups[bracketIndex];
-      if (!bracket) return;
+      if (!bracket) continue;
 
       const size = bracket.size;
       const tp = bracket.take_profit_price;
       const sl = bracket.stop_loss_price;
 
-      if (outcome === 'tp') {
-        const plPerUnit = direction === 'long' ? (tp - entry) : (entry - tp);
+      if (outcome === "tp") {
+        const plPerUnit = direction === "long" ? tp - entry : entry - tp;
         const pl = plPerUnit * size * valuePerUnitNum;
         totalPL += pl;
         totalReward += pl;
-      } else if (outcome === 'sl') {
-        const plPerUnit = direction === 'long' ? (sl - entry) : (entry - sl);
+      } else if (outcome === "sl") {
+        const plPerUnit = direction === "long" ? sl - entry : entry - sl;
         const pl = plPerUnit * size * valuePerUnitNum;
         totalPL += pl;
         totalRisk += Math.abs(pl);
       }
-    });
+    }
 
     const overallRR = totalRisk !== 0 ? totalPL / totalRisk : 0;
 
@@ -532,7 +698,7 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
   const addScenario = () => {
     const newScenario = calculateScenario(
       `Scenario ${scenarios.length + 1}`,
-      bracketGroups.map((_, index) => ({ bracketIndex: index, outcome: 'tp' }))
+      bracketGroups.map((_, index) => ({ bracketIndex: index, outcome: "tp" })),
     );
     setScenarios([...scenarios, newScenario]);
   };
@@ -541,13 +707,20 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
     setScenarios(scenarios.filter((_, i) => i !== index));
   };
 
-  const updateScenarioOutcome = (scenarioIndex: number, bracketIndex: number, outcome: string) => {
+  const updateScenarioOutcome = (
+    scenarioIndex: number,
+    bracketIndex: number,
+    outcome: string,
+  ) => {
     const updatedScenarios = [...scenarios];
     const scenario = updatedScenarios[scenarioIndex];
     const updatedBracketOutcomes = scenario.bracketOutcomes.map((bo) =>
-      bo.bracketIndex === bracketIndex ? { ...bo, outcome } : bo
+      bo.bracketIndex === bracketIndex ? { ...bo, outcome } : bo,
     );
-    updatedScenarios[scenarioIndex] = calculateScenario(scenario.scenarioDescription, updatedBracketOutcomes);
+    updatedScenarios[scenarioIndex] = calculateScenario(
+      scenario.scenarioDescription,
+      updatedBracketOutcomes,
+    );
     setScenarios(updatedScenarios);
   };
 
@@ -555,40 +728,80 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
     // Validation
     const errors: ValidationError[] = [];
 
-    if (!modelId) errors.push({ field: 'model', message: 'Please select a model' });
-    if (!asset) errors.push({ field: 'asset', message: 'Please enter an asset' });
-    if (!entryPrice || safeParseFloat(entryPrice) === 0) errors.push({ field: 'entryPrice', message: 'Please enter entry price' });
-    if (!primaryStopLoss || safeParseFloat(primaryStopLoss) === 0) errors.push({ field: 'primaryStopLoss', message: 'Please enter primary stop-loss' });
-    if (!primaryStopLossValid.valid) errors.push({ field: 'primaryStopLoss', message: primaryStopLossValid.message });
-    if (bracketGroups.length === 0) errors.push({ field: 'brackets', message: 'Please add at least one bracket' });
-    if (totalPositionSize === 0) errors.push({ field: 'brackets', message: 'Total position size cannot be zero' });
+    if (!modelId)
+      errors.push({ field: "model", message: "Please select a model" });
+    if (!asset)
+      errors.push({ field: "asset", message: "Please enter an asset" });
+    if (!entryPrice || safeParseFloat(entryPrice) === 0)
+      errors.push({ field: "entryPrice", message: "Please enter entry price" });
+    if (!primaryStopLoss || safeParseFloat(primaryStopLoss) === 0)
+      errors.push({
+        field: "primaryStopLoss",
+        message: "Please enter primary stop-loss",
+      });
+    if (!primaryStopLossValid.valid)
+      errors.push({
+        field: "primaryStopLoss",
+        message: primaryStopLossValid.message,
+      });
+    if (bracketGroups.length === 0)
+      errors.push({
+        field: "brackets",
+        message: "Please add at least one bracket",
+      });
+    if (totalPositionSize === 0)
+      errors.push({
+        field: "brackets",
+        message: "Total position size cannot be zero",
+      });
 
     // Validate bracket groups
     bracketGroups.forEach((bg, index) => {
       if (bg.size === 0) {
-        errors.push({ field: `bracket-${index}`, message: `Bracket ${index + 1}: Size cannot be zero` });
+        errors.push({
+          field: `bracket-${index}`,
+          message: `Bracket ${index + 1}: Size cannot be zero`,
+        });
       }
       if (bg.take_profit_price === 0) {
-        errors.push({ field: `bracket-${index}`, message: `Bracket ${index + 1}: Take profit price cannot be zero` });
+        errors.push({
+          field: `bracket-${index}`,
+          message: `Bracket ${index + 1}: Take profit price cannot be zero`,
+        });
       }
       if (bg.stop_loss_price === 0) {
-        errors.push({ field: `bracket-${index}`, message: `Bracket ${index + 1}: Stop loss price cannot be zero` });
+        errors.push({
+          field: `bracket-${index}`,
+          message: `Bracket ${index + 1}: Stop loss price cannot be zero`,
+        });
       }
 
       // Validate TP/SL relationship based on direction
-      if (direction === 'long') {
+      if (direction === "long") {
         if (bg.take_profit_price <= safeParseFloat(entryPrice)) {
-          errors.push({ field: `bracket-${index}`, message: `Bracket ${index + 1}: For long trades, take profit must be above entry` });
+          errors.push({
+            field: `bracket-${index}`,
+            message: `Bracket ${index + 1}: For long trades, take profit must be above entry`,
+          });
         }
         if (bg.stop_loss_price >= safeParseFloat(entryPrice)) {
-          errors.push({ field: `bracket-${index}`, message: `Bracket ${index + 1}: For long trades, stop loss must be below entry` });
+          errors.push({
+            field: `bracket-${index}`,
+            message: `Bracket ${index + 1}: For long trades, stop loss must be below entry`,
+          });
         }
       } else {
         if (bg.take_profit_price >= safeParseFloat(entryPrice)) {
-          errors.push({ field: `bracket-${index}`, message: `Bracket ${index + 1}: For short trades, take profit must be below entry` });
+          errors.push({
+            field: `bracket-${index}`,
+            message: `Bracket ${index + 1}: For short trades, take profit must be below entry`,
+          });
         }
         if (bg.stop_loss_price <= safeParseFloat(entryPrice)) {
-          errors.push({ field: `bracket-${index}`, message: `Bracket ${index + 1}: For short trades, stop loss must be above entry` });
+          errors.push({
+            field: `bracket-${index}`,
+            message: `Bracket ${index + 1}: For short trades, stop loss must be above entry`,
+          });
         }
       }
     });
@@ -599,7 +812,7 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
     }
 
     if (!identity) {
-      toast.error('Please log in to create a trade');
+      toast.error("Please log in to create a trade");
       return;
     }
 
@@ -632,14 +845,17 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
       direction,
       bracket_order: bracketOrder,
       bracket_order_outcomes: trade?.bracket_order_outcomes || [],
-      notes: trade?.notes || '',
-      mood: trade?.mood || '',
+      notes: trade?.notes || "",
+      mood: trade?.mood || "",
       images: trade?.images || [],
       quickTags: trade?.quickTags || [],
       mistakeTags: trade?.mistakeTags || [],
       strengthTags: trade?.strengthTags || [],
       created_at: trade?.created_at || BigInt(date.getTime() * 1000000),
-      calculation_method: calculationMethod === 'tick' ? CalculationMethod.tick : CalculationMethod.point,
+      calculation_method:
+        calculationMethod === "tick"
+          ? CalculationMethod.tick
+          : CalculationMethod.point,
       value_per_unit: safeParseFloat(valuePerUnit),
       model_conditions: modelConditions,
       adherence_score: adherenceScore / 100,
@@ -652,14 +868,14 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
     try {
       if (trade) {
         await updateTrade.mutateAsync(tradeData);
-        toast.success('Trade updated successfully!');
+        toast.success("Trade updated successfully!");
       } else {
         await createTrade.mutateAsync(tradeData);
-        toast.success('Trade created successfully!');
+        toast.success("Trade created successfully!");
       }
       onClose();
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to save trade');
+      toast.error(error?.message || "Failed to save trade");
       console.error(error);
     }
   };
@@ -704,30 +920,47 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
               <Label htmlFor="date">Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(date, 'PPP')}
+                    {format(date, "PPP")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus />
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={(d) => d && setDate(d)}
+                    initialFocus
+                  />
                 </PopoverContent>
               </Popover>
             </div>
 
             <div className="space-y-2">
               <Label>Direction *</Label>
-              <RadioGroup value={direction} onValueChange={(v) => setDirection(v as 'long' | 'short')}>
+              <RadioGroup
+                value={direction}
+                onValueChange={(v) => setDirection(v as "long" | "short")}
+              >
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="long" id="long" />
-                    <Label htmlFor="long" className="font-normal cursor-pointer">
+                    <Label
+                      htmlFor="long"
+                      className="font-normal cursor-pointer"
+                    >
                       Long
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="short" id="short" />
-                    <Label htmlFor="short" className="font-normal cursor-pointer">
+                    <Label
+                      htmlFor="short"
+                      className="font-normal cursor-pointer"
+                    >
                       Short
                     </Label>
                   </div>
@@ -745,7 +978,9 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <CardTitle>Model Adherence</CardTitle>
-                <CardDescription>Check the conditions you observed</CardDescription>
+                <CardDescription>
+                  Check the conditions you observed
+                </CardDescription>
               </div>
               <Badge variant="outline" className="text-lg px-3 py-1 shrink-0">
                 {adherenceScore.toFixed(0)}%
@@ -762,15 +997,22 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
             ) : conditionsError ? (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>Failed to load model conditions</AlertDescription>
+                <AlertDescription>
+                  Failed to load model conditions
+                </AlertDescription>
               </Alert>
             ) : modelConditions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No conditions defined for this model</p>
+              <p className="text-sm text-muted-foreground">
+                No conditions defined for this model
+              </p>
             ) : (
               <ScrollArea className="h-[300px] pr-4">
                 <div className="space-y-3">
                   {modelConditions.map((condition) => (
-                    <div key={condition.id} className="flex items-start space-x-3 p-3 rounded-lg border">
+                    <div
+                      key={condition.id}
+                      className="flex items-start space-x-3 p-3 rounded-lg border"
+                    >
                       <Checkbox
                         id={condition.id}
                         checked={condition.isChecked}
@@ -778,7 +1020,10 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
                         className="mt-1"
                       />
                       <div className="flex-1 min-w-0">
-                        <Label htmlFor={condition.id} className="text-sm font-medium cursor-pointer break-words">
+                        <Label
+                          htmlFor={condition.id}
+                          className="text-sm font-medium cursor-pointer break-words"
+                        >
                           {condition.description}
                         </Label>
                         <p className="text-xs text-muted-foreground mt-1">
@@ -801,7 +1046,9 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
       <Card className="w-full">
         <CardHeader>
           <CardTitle>Position Sizing</CardTitle>
-          <CardDescription>Calculate your position size based on risk</CardDescription>
+          <CardDescription>
+            Calculate your position size based on risk
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -832,10 +1079,14 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
                     setPrimaryStopLoss(e.target.value);
                   }
                 }}
-                className={!primaryStopLossValid.valid ? 'border-destructive' : ''}
+                className={
+                  !primaryStopLossValid.valid ? "border-destructive" : ""
+                }
               />
               {!primaryStopLossValid.valid && (
-                <p className="text-sm text-destructive">{primaryStopLossValid.message}</p>
+                <p className="text-sm text-destructive">
+                  {primaryStopLossValid.message}
+                </p>
               )}
             </div>
 
@@ -858,7 +1109,10 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
               <div className="flex items-center justify-between">
                 <Label htmlFor="risk-percent">Risk %</Label>
                 <div className="flex items-center space-x-2">
-                  <Label htmlFor="use-risk-dollar" className="text-xs text-muted-foreground">
+                  <Label
+                    htmlFor="use-risk-dollar"
+                    className="text-xs text-muted-foreground"
+                  >
                     Use $
                   </Label>
                   <Switch
@@ -897,7 +1151,10 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
 
             <div className="space-y-2">
               <Label htmlFor="asset-type">Asset Type</Label>
-              <Select value={assetType} onValueChange={(v) => setAssetType(v as typeof assetType)}>
+              <Select
+                value={assetType}
+                onValueChange={(v) => setAssetType(v as typeof assetType)}
+              >
                 <SelectTrigger id="asset-type">
                   <SelectValue />
                 </SelectTrigger>
@@ -922,7 +1179,12 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
 
             <div className="space-y-2">
               <Label htmlFor="calculation-method">Calculation Method</Label>
-              <Select value={calculationMethod} onValueChange={(v) => setCalculationMethod(v as 'tick' | 'point')}>
+              <Select
+                value={calculationMethod}
+                onValueChange={(v) =>
+                  setCalculationMethod(v as "tick" | "point")
+                }
+              >
                 <SelectTrigger id="calculation-method">
                   <SelectValue />
                 </SelectTrigger>
@@ -934,7 +1196,9 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="value-per-unit">Value Per {calculationMethod === 'tick' ? 'Tick' : 'Point'}</Label>
+              <Label htmlFor="value-per-unit">
+                Value Per {calculationMethod === "tick" ? "Tick" : "Point"}
+              </Label>
               <Input
                 id="value-per-unit"
                 type="text"
@@ -949,7 +1213,7 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
             </div>
           </div>
 
-          {assetType === 'futures' && (
+          {assetType === "futures" && (
             <div className="flex items-center space-x-2">
               <Switch
                 id="allow-fractional"
@@ -966,14 +1230,20 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
 
           <div className="bg-muted p-4 rounded-lg space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Calculated Position Size:</span>
+              <span className="text-sm font-medium">
+                Calculated Position Size:
+              </span>
               <span className="text-lg font-bold">
-                {calculatedPositionSize.toFixed(assetType === 'crypto' ? 8 : 2)} {contractLotUnit}
+                {calculatedPositionSize.toFixed(assetType === "crypto" ? 8 : 2)}{" "}
+                {contractLotUnit}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Risk Amount:</span>
-              <span>${positionSizerResults.riskDollars.toFixed(2)} ({positionSizerResults.riskPercent.toFixed(2)}%)</span>
+              <span>
+                ${positionSizerResults.riskDollars.toFixed(2)} (
+                {positionSizerResults.riskPercent.toFixed(2)}%)
+              </span>
             </div>
           </div>
         </CardContent>
@@ -985,9 +1255,16 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div className="min-w-0 flex-1">
               <CardTitle>Bracket Configuration</CardTitle>
-              <CardDescription>Define your take-profit and stop-loss brackets</CardDescription>
+              <CardDescription>
+                Define your take-profit and stop-loss brackets
+              </CardDescription>
             </div>
-            <Button onClick={populateBracketSizes} variant="outline" size="sm" className="gap-2 shrink-0">
+            <Button
+              onClick={populateBracketSizes}
+              variant="outline"
+              size="sm"
+              className="gap-2 shrink-0"
+            >
               <Calculator className="w-4 h-4" />
               Populate Sizes
             </Button>
@@ -996,7 +1273,10 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
         <CardContent className="space-y-4">
           <div className="space-y-4">
             {bracketGroups.map((group, index) => (
-              <div key={group.bracket_id} className="p-4 border rounded-lg space-y-3">
+              <div
+                key={group.bracket_id}
+                className="p-4 border rounded-lg space-y-3"
+              >
                 <div className="flex items-center justify-between">
                   <h4 className="font-semibold">Bracket {index + 1}</h4>
                   {bracketGroups.length > 1 && (
@@ -1018,8 +1298,10 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
                       id={`bracket-${index}-size`}
                       type="text"
                       placeholder="0"
-                      value={group.size === 0 ? '' : group.size.toString()}
-                      onChange={(e) => updateBracketGroup(index, 'size', e.target.value)}
+                      value={group.size === 0 ? "" : group.size.toString()}
+                      onChange={(e) =>
+                        updateBracketGroup(index, "size", e.target.value)
+                      }
                     />
                   </div>
 
@@ -1029,8 +1311,18 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
                       id={`bracket-${index}-tp`}
                       type="text"
                       placeholder="0.00"
-                      value={group.take_profit_price === 0 ? '' : group.take_profit_price.toString()}
-                      onChange={(e) => updateBracketGroup(index, 'take_profit_price', e.target.value)}
+                      value={
+                        group.take_profit_price === 0
+                          ? ""
+                          : group.take_profit_price.toString()
+                      }
+                      onChange={(e) =>
+                        updateBracketGroup(
+                          index,
+                          "take_profit_price",
+                          e.target.value,
+                        )
+                      }
                     />
                   </div>
 
@@ -1040,8 +1332,18 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
                       id={`bracket-${index}-sl`}
                       type="text"
                       placeholder="0.00"
-                      value={group.stop_loss_price === 0 ? '' : group.stop_loss_price.toString()}
-                      onChange={(e) => updateBracketGroup(index, 'stop_loss_price', e.target.value)}
+                      value={
+                        group.stop_loss_price === 0
+                          ? ""
+                          : group.stop_loss_price.toString()
+                      }
+                      onChange={(e) =>
+                        updateBracketGroup(
+                          index,
+                          "stop_loss_price",
+                          e.target.value,
+                        )
+                      }
                     />
                   </div>
                 </div>
@@ -1049,7 +1351,11 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
             ))}
           </div>
 
-          <Button onClick={addBracketGroup} variant="outline" className="w-full gap-2">
+          <Button
+            onClick={addBracketGroup}
+            variant="outline"
+            className="w-full gap-2"
+          >
             <Plus className="w-4 h-4" />
             Add Bracket
           </Button>
@@ -1058,7 +1364,8 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Total Position Size:</span>
               <span className="text-lg font-bold">
-                {totalPositionSize.toFixed(assetType === 'crypto' ? 8 : 2)} {contractLotUnit}
+                {totalPositionSize.toFixed(assetType === "crypto" ? 8 : 2)}{" "}
+                {contractLotUnit}
               </span>
             </div>
           </div>
@@ -1073,13 +1380,21 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
         </CardHeader>
         <CardContent className="space-y-4">
           {scenarios.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No scenarios added yet</p>
+            <p className="text-sm text-muted-foreground">
+              No scenarios added yet
+            </p>
           ) : (
             <div className="space-y-4">
               {scenarios.map((scenario, scenarioIndex) => (
-                <div key={scenarioIndex} className="p-4 border rounded-lg space-y-3">
+                <div
+                  // biome-ignore lint/suspicious/noArrayIndexKey: scenarios are ordered without stable IDs
+                  key={scenarioIndex}
+                  className="p-4 border rounded-lg space-y-3"
+                >
                   <div className="flex items-center justify-between">
-                    <h4 className="font-semibold">{scenario.scenarioDescription}</h4>
+                    <h4 className="font-semibold">
+                      {scenario.scenarioDescription}
+                    </h4>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1091,36 +1406,50 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {scenario.bracketOutcomes.map(({ bracketIndex, outcome }) => (
-                      <div key={bracketIndex} className="space-y-2">
-                        <Label className="text-xs">Bracket {bracketIndex + 1}</Label>
-                        <Select
-                          value={outcome}
-                          onValueChange={(v) => updateScenarioOutcome(scenarioIndex, bracketIndex, v)}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="tp">TP</SelectItem>
-                            <SelectItem value="sl">SL</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ))}
+                    {scenario.bracketOutcomes.map(
+                      ({ bracketIndex, outcome }) => (
+                        <div key={bracketIndex} className="space-y-2">
+                          <Label className="text-xs">
+                            Bracket {bracketIndex + 1}
+                          </Label>
+                          <Select
+                            value={outcome}
+                            onValueChange={(v) =>
+                              updateScenarioOutcome(
+                                scenarioIndex,
+                                bracketIndex,
+                                v,
+                              )
+                            }
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="tp">TP</SelectItem>
+                              <SelectItem value="sl">SL</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ),
+                    )}
                   </div>
 
                   {scenario.isValid && (
                     <div className="bg-muted p-3 rounded-lg space-y-1">
                       <div className="flex items-center justify-between text-sm">
                         <span>Total P/L:</span>
-                        <span className={`font-semibold ${scenario.totalPL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        <span
+                          className={`font-semibold ${scenario.totalPL >= 0 ? "text-green-500" : "text-red-500"}`}
+                        >
                           ${scenario.totalPL.toFixed(2)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span>R:R Ratio:</span>
-                        <span className="font-semibold">{scenario.overallRR.toFixed(2)}R</span>
+                        <span className="font-semibold">
+                          {scenario.overallRR.toFixed(2)}R
+                        </span>
                       </div>
                     </div>
                   )}
@@ -1129,7 +1458,11 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
             </div>
           )}
 
-          <Button onClick={addScenario} variant="outline" className="w-full gap-2">
+          <Button
+            onClick={addScenario}
+            variant="outline"
+            className="w-full gap-2"
+          >
             <Plus className="w-4 h-4" />
             Add Scenario
           </Button>
@@ -1138,7 +1471,11 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
 
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-3 justify-end">
-        <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
+        <Button
+          variant="outline"
+          onClick={onClose}
+          className="w-full sm:w-auto"
+        >
           Cancel
         </Button>
         <Button
@@ -1147,10 +1484,10 @@ export default function TradeForm({ trade, models, onClose, preloadedModelId, pr
           className="w-full sm:w-auto"
         >
           {createTrade.isPending || updateTrade.isPending
-            ? 'Saving...'
+            ? "Saving..."
             : trade
-            ? 'Update Trade'
-            : 'Create Trade'}
+              ? "Update Trade"
+              : "Create Trade"}
         </Button>
       </div>
     </div>

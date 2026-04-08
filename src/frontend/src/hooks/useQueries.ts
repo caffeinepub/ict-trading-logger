@@ -1,19 +1,19 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useActor } from './useActor';
-import type { 
-  Model, 
-  Trade, 
-  CustomToolDefinition, 
-  UserProfile, 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type {
   BracketOrderOutcome,
-  ModelCondition
-} from '../backend';
+  CustomToolDefinition,
+  Model,
+  ModelCondition,
+  Trade,
+  UserProfile,
+} from "../types";
+import { useActor } from "./useActor";
 
 export function useGetAllModels() {
   const { actor, isFetching } = useActor();
 
   return useQuery<Model[]>({
-    queryKey: ['models'],
+    queryKey: ["models"],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getAllModels();
@@ -26,7 +26,7 @@ export function useGetModel(id: string) {
   const { actor, isFetching } = useActor();
 
   return useQuery<Model | null>({
-    queryKey: ['model', id],
+    queryKey: ["model", id],
     queryFn: async () => {
       if (!actor || !id) return null;
       return actor.getModel(id);
@@ -41,11 +41,11 @@ export function useCreateModel() {
 
   return useMutation({
     mutationFn: async (model: Model) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.createModel(model);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['models'] });
+      queryClient.invalidateQueries({ queryKey: ["models"] });
     },
   });
 }
@@ -56,11 +56,11 @@ export function useUpdateModel() {
 
   return useMutation({
     mutationFn: async (model: Model) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.updateModel(model);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['models'] });
+      queryClient.invalidateQueries({ queryKey: ["models"] });
     },
   });
 }
@@ -71,11 +71,11 @@ export function useDeleteModel() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.deleteModel(id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['models'] });
+      queryClient.invalidateQueries({ queryKey: ["models"] });
     },
   });
 }
@@ -84,7 +84,7 @@ export function useGetAllTrades() {
   const { actor, isFetching } = useActor();
 
   return useQuery<Trade[]>({
-    queryKey: ['trades'],
+    queryKey: ["trades"],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getAllTrades();
@@ -97,7 +97,7 @@ export function useGetTrade(id: string) {
   const { actor, isFetching } = useActor();
 
   return useQuery<Trade | null>({
-    queryKey: ['trade', id],
+    queryKey: ["trade", id],
     queryFn: async () => {
       if (!actor || !id) return null;
       return actor.getTrade(id);
@@ -110,7 +110,7 @@ export function useGetTradesByModel(modelId: string) {
   const { actor, isFetching } = useActor();
 
   return useQuery<Trade[]>({
-    queryKey: ['trades', 'byModel', modelId],
+    queryKey: ["trades", "byModel", modelId],
     queryFn: async () => {
       if (!actor || !modelId) return [];
       return actor.getTradesByModel(modelId);
@@ -125,11 +125,11 @@ export function useCreateTrade() {
 
   return useMutation({
     mutationFn: async (trade: Trade) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.createTrade(trade);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trades'] });
+      queryClient.invalidateQueries({ queryKey: ["trades"] });
     },
   });
 }
@@ -140,11 +140,11 @@ export function useUpdateTrade() {
 
   return useMutation({
     mutationFn: async (trade: Trade) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.updateTrade(trade);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trades'] });
+      queryClient.invalidateQueries({ queryKey: ["trades"] });
     },
   });
 }
@@ -155,11 +155,11 @@ export function useDeleteTrade() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.deleteTrade(id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trades'] });
+      queryClient.invalidateQueries({ queryKey: ["trades"] });
     },
   });
 }
@@ -168,7 +168,7 @@ export function useGetCurrentTime() {
   const { actor, isFetching } = useActor();
 
   return useQuery<bigint>({
-    queryKey: ['currentTime'],
+    queryKey: ["currentTime"],
     queryFn: async () => {
       if (!actor) return BigInt(Date.now() * 1000000);
       return actor.getCurrentTime();
@@ -181,9 +181,9 @@ export function useGetCallerUserProfile() {
   const { actor, isFetching: actorFetching } = useActor();
 
   const query = useQuery<UserProfile | null>({
-    queryKey: ['currentUserProfile'],
+    queryKey: ["currentUserProfile"],
     queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.getCallerUserProfile();
     },
     enabled: !!actor && !actorFetching,
@@ -203,11 +203,11 @@ export function useSaveCallerUserProfile() {
 
   return useMutation({
     mutationFn: async (profile: UserProfile) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.saveCallerUserProfile(profile);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
+      queryClient.invalidateQueries({ queryKey: ["currentUserProfile"] });
     },
   });
 }
@@ -216,7 +216,7 @@ export function useGetAllCustomTools() {
   const { actor, isFetching } = useActor();
 
   return useQuery<CustomToolDefinition[]>({
-    queryKey: ['customTools'],
+    queryKey: ["customTools"],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getAllCustomTools();
@@ -231,11 +231,11 @@ export function useCreateCustomTool() {
 
   return useMutation({
     mutationFn: async (tool: CustomToolDefinition) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.createCustomTool(tool);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customTools'] });
+      queryClient.invalidateQueries({ queryKey: ["customTools"] });
     },
   });
 }
@@ -246,11 +246,11 @@ export function useUpdateCustomTool() {
 
   return useMutation({
     mutationFn: async (tool: CustomToolDefinition) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.updateCustomTool(tool);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customTools'] });
+      queryClient.invalidateQueries({ queryKey: ["customTools"] });
     },
   });
 }
@@ -261,11 +261,11 @@ export function useDeleteCustomTool() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.deleteCustomTool(id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customTools'] });
+      queryClient.invalidateQueries({ queryKey: ["customTools"] });
     },
   });
 }
@@ -274,7 +274,7 @@ export function useGetModelConditions(modelId: string) {
   const { actor, isFetching } = useActor();
 
   return useQuery<ModelCondition[]>({
-    queryKey: ['modelConditions', modelId],
+    queryKey: ["modelConditions", modelId],
     queryFn: async () => {
       if (!actor || !modelId) return [];
       return actor.getModelConditions(modelId);
@@ -288,7 +288,7 @@ export function useCalculateAdherenceScore() {
 
   return useMutation({
     mutationFn: async (conditions: ModelCondition[]) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.calculateAdherenceScore(conditions);
     },
   });

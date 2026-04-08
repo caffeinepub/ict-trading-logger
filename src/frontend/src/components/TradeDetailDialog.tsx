@@ -1,9 +1,15 @@
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { toast } from 'sonner';
-import type { Trade } from '../backend';
-import { useUpdateTrade } from '../hooks/useQueries';
-import TradeOutcomeEditor from './trade/TradeOutcomeEditor';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "sonner";
+import { useUpdateTrade } from "../hooks/useQueries";
+import type { Trade } from "../types";
+import TradeOutcomeEditor from "./trade/TradeOutcomeEditor";
 
 interface TradeDetailDialogProps {
   trade: Trade | null;
@@ -11,7 +17,11 @@ interface TradeDetailDialogProps {
   onClose: () => void;
 }
 
-export default function TradeDetailDialog({ trade, open, onClose }: TradeDetailDialogProps) {
+export default function TradeDetailDialog({
+  trade,
+  open,
+  onClose,
+}: TradeDetailDialogProps) {
   const updateTrade = useUpdateTrade();
 
   if (!trade) return null;
@@ -19,10 +29,10 @@ export default function TradeDetailDialog({ trade, open, onClose }: TradeDetailD
   const handleSave = async (updatedTrade: Trade) => {
     try {
       await updateTrade.mutateAsync(updatedTrade);
-      toast.success('Trade outcome saved successfully!');
+      toast.success("Trade outcome saved successfully!");
       onClose();
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to save trade outcome');
+      toast.error(error?.message || "Failed to save trade outcome");
       console.error(error);
     }
   };

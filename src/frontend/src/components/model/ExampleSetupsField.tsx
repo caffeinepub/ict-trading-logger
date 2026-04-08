@@ -1,25 +1,28 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
-import { Plus, X, Upload } from 'lucide-react';
-import { ExternalBlob } from '../../backend';
-import type { ExampleImage } from '../../backend';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Plus, Upload, X } from "lucide-react";
+import { useState } from "react";
+import { ExternalBlob } from "../../backend";
+import type { ExampleImage } from "../../types";
 
 interface ExampleSetupsFieldProps {
   examples: ExampleImage[];
   onChange: (examples: ExampleImage[]) => void;
 }
 
-export default function ExampleSetupsField({ examples, onChange }: ExampleSetupsFieldProps) {
+export default function ExampleSetupsField({
+  examples,
+  onChange,
+}: ExampleSetupsFieldProps) {
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
   const handleAdd = () => {
     const newExample: ExampleImage = {
       id: `example_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       blob: ExternalBlob.fromBytes(new Uint8Array()),
-      description: '',
+      description: "",
       created_at: BigInt(Date.now() * 1000000),
     };
     onChange([...examples, newExample]);
@@ -41,12 +44,12 @@ export default function ExampleSetupsField({ examples, onChange }: ExampleSetups
       const arrayBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
       const blob = ExternalBlob.fromBytes(uint8Array);
-      
+
       const updated = [...examples];
       updated[index] = { ...updated[index], blob };
       onChange(updated);
     } catch (error) {
-      console.error('Failed to upload image:', error);
+      console.error("Failed to upload image:", error);
     } finally {
       setUploadingIndex(null);
     }
@@ -56,7 +59,13 @@ export default function ExampleSetupsField({ examples, onChange }: ExampleSetups
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <Label>Example Setups</Label>
-        <Button type="button" variant="outline" size="sm" onClick={handleAdd} className="gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleAdd}
+          className="gap-2"
+        >
           <Plus className="w-4 h-4" />
           Add Example
         </Button>
@@ -66,7 +75,8 @@ export default function ExampleSetupsField({ examples, onChange }: ExampleSetups
         <Card>
           <CardContent className="py-8 text-center">
             <p className="text-sm text-muted-foreground">
-              No example setups yet. Add images with descriptions to help identify this model's criteria.
+              No example setups yet. Add images with descriptions to help
+              identify this model's criteria.
             </p>
           </CardContent>
         </Card>
@@ -78,7 +88,10 @@ export default function ExampleSetupsField({ examples, onChange }: ExampleSetups
                 <div className="flex items-start gap-3">
                   <div className="flex-1 space-y-3">
                     <div>
-                      <Label htmlFor={`example-image-${index}`} className="text-sm">
+                      <Label
+                        htmlFor={`example-image-${index}`}
+                        className="text-sm"
+                      >
                         Image
                       </Label>
                       <div className="mt-1 flex items-center gap-2">
@@ -99,24 +112,29 @@ export default function ExampleSetupsField({ examples, onChange }: ExampleSetups
                       </div>
                     </div>
 
-                    {example.blob && example.blob.getDirectURL() && (
+                    {example.blob?.getDirectURL() && (
                       <div className="relative w-full h-32 bg-muted rounded border overflow-hidden">
                         <img
                           src={example.blob.getDirectURL()}
-                          alt={example.description || 'Example setup'}
+                          alt={example.description || "Example setup"}
                           className="w-full h-full object-cover"
                         />
                       </div>
                     )}
 
                     <div>
-                      <Label htmlFor={`example-desc-${index}`} className="text-sm">
+                      <Label
+                        htmlFor={`example-desc-${index}`}
+                        className="text-sm"
+                      >
                         Description
                       </Label>
                       <Input
                         id={`example-desc-${index}`}
                         value={example.description}
-                        onChange={(e) => handleDescriptionChange(index, e.target.value)}
+                        onChange={(e) =>
+                          handleDescriptionChange(index, e.target.value)
+                        }
                         placeholder="Describe what this example shows..."
                         className="mt-1"
                       />

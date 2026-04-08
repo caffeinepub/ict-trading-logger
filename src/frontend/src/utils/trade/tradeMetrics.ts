@@ -1,4 +1,4 @@
-import type { Trade, BracketOrderOutcome } from '../../backend';
+import type { BracketOrderOutcome, Trade } from "../../types";
 
 /**
  * Computes total P/L in USD from bracket outcomes
@@ -10,20 +10,20 @@ export function computeTradePLFromOutcomes(trade: Trade): number {
 
   const entry = trade.bracket_order.entry_price;
   const valuePerUnit = trade.value_per_unit;
-  const isLong = trade.direction === 'long';
-  
+  const isLong = trade.direction === "long";
+
   let totalPL = 0;
 
-  trade.bracket_order_outcomes.forEach(outcome => {
+  for (const outcome of trade.bracket_order_outcomes) {
     const size = outcome.size;
     const closurePrice = outcome.closure_price;
-    
+
     // Calculate P/L for this bracket
-    const priceDiff = isLong ? (closurePrice - entry) : (entry - closurePrice);
+    const priceDiff = isLong ? closurePrice - entry : entry - closurePrice;
     const bracketPL = priceDiff * size * valuePerUnit;
-    
+
     totalPL += bracketPL;
-  });
+  }
 
   return totalPL;
 }
@@ -37,12 +37,17 @@ export function computeTradeRRFromOutcomes(trade: Trade): number {
   }
 
   const totalPL = computeTradePLFromOutcomes(trade);
-  
+
   // Calculate max risk based on primary stop loss
   const entry = trade.bracket_order.entry_price;
-  const primaryStopDistance = Math.abs(entry - trade.bracket_order.primary_stop_loss);
-  const maxRisk = primaryStopDistance * trade.bracket_order.position_size * trade.value_per_unit;
-  
+  const primaryStopDistance = Math.abs(
+    entry - trade.bracket_order.primary_stop_loss,
+  );
+  const maxRisk =
+    primaryStopDistance *
+    trade.bracket_order.position_size *
+    trade.value_per_unit;
+
   return maxRisk > 0 ? totalPL / maxRisk : 0;
 }
 
